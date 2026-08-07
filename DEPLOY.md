@@ -26,15 +26,17 @@ Tables are created automatically when the API boots (`SQLModel.create_all`). Dem
 
 ## 2. Backend API (Railway)
 
-Config in this repo: `backend/railway.toml`, `backend/nixpacks.toml`, `backend/Procfile`.
+This monorepo includes a **root `Dockerfile` + `railway.toml`**, so Railway can build the API even if Root Directory is `/`.
 
-1. Go to [railway.app](https://railway.app) → **New Project** → **Deploy from GitHub**.
-2. Select this repository.
-3. **Important:** set **Root Directory** to `backend`  
-   (Settings → Root Directory → `backend`).  
-   Do **not** deploy from the monorepo root, and do **not** set a custom build command like `pip install ...` — Nixpacks must install Python first.
-4. Add a **public HTTP** domain for the service.
-5. Set environment variables:
+### Recommended setup
+
+1. [railway.app](https://railway.app) → **New Project** → **Deploy from GitHub** → this repo.
+2. Open the service → **Settings**:
+   - **Root Directory:** leave empty **or** set to `backend` (both work after this fix)
+   - **Builder:** should pick up `Dockerfile` / `railway.toml` automatically  
+     If you previously set a custom build command, **clear it**.
+3. Generate a **public domain** (Settings → Networking → Generate Domain).
+4. Set environment variables:
 
 | Variable | Example | Required |
 | --- | --- | --- |
@@ -45,16 +47,23 @@ Config in this repo: `backend/railway.toml`, `backend/nixpacks.toml`, `backend/P
 | `OPENAI_MODEL` | `gpt-4o-mini` | No |
 | `ENVIRONMENT` | `production` | No |
 
-6. Redeploy, then open:
+5. **Redeploy** (Deployments → Redeploy), then open:
    - `https://<your-railway-domain>/api/health`
    - Expect `"status":"ok"` and a non-zero `listings_count` after first boot.
 
-Start command used in production:
+Start command:
 
 ```bash
 uvicorn app.main:app --host 0.0.0.0 --port $PORT
 ```
 
+### If you still see “Railpack could not determine how to build”
+
+Railway is analyzing the monorepo root without a Dockerfile config. Do one of:
+
+1. Merge/pull latest main (must include root `Dockerfile` + `railway.toml`), then redeploy  
+2. Or set **Root Directory** = `backend` and clear custom build/start overrides  
+3. Or in Variables set `RAILWAY_DOCKERFILE_PATH=Dockerfile`
 ---
 
 ## 3. Frontend (Vercel)
@@ -156,7 +165,7 @@ All four free tiers are enough for early traffic:
 - `INGEST_TOKEN` mismatch between Railway and Modal
 - Worker `BACKEND_API_URL` missing `https://`
 
-**Railway: `pip: command not found`**
-- Root Directory is wrong (must be `backend`)
-- Clear any custom Build Command in Railway settings so Nixpacks auto-detects Python
-- Redeploy after pulling the latest `backend/railway.toml` / `backend/nixpacks.toml`
+**Railway: `pip: command not found` / Railpack “could not determine how to build”**
+- Pull latest main (root `Dockerfile` + `railway.toml`), clear custom Build Command, redeploy
+- Or set Root Directory = `backend`
+- Or set variable `RAILWAY_DOCKERFILE_PATH=Dockerfile`
