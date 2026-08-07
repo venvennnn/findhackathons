@@ -26,11 +26,13 @@ Tables are created automatically when the API boots (`SQLModel.create_all`). Dem
 
 ## 2. Backend API (Railway)
 
-Config in this repo: `backend/railway.toml` + `backend/Procfile`.
+Config in this repo: `backend/railway.toml`, `backend/nixpacks.toml`, `backend/Procfile`.
 
 1. Go to [railway.app](https://railway.app) → **New Project** → **Deploy from GitHub**.
 2. Select this repository.
-3. Set **Root Directory** to `backend` (or rely on `backend/railway.toml` if Railway detects it).
+3. **Important:** set **Root Directory** to `backend`  
+   (Settings → Root Directory → `backend`).  
+   Do **not** deploy from the monorepo root, and do **not** set a custom build command like `pip install ...` — Nixpacks must install Python first.
 4. Add a **public HTTP** domain for the service.
 5. Set environment variables:
 
@@ -153,3 +155,8 @@ All four free tiers are enough for early traffic:
 **Ingest rejected**
 - `INGEST_TOKEN` mismatch between Railway and Modal
 - Worker `BACKEND_API_URL` missing `https://`
+
+**Railway: `pip: command not found`**
+- Root Directory is wrong (must be `backend`)
+- Clear any custom Build Command in Railway settings so Nixpacks auto-detects Python
+- Redeploy after pulling the latest `backend/railway.toml` / `backend/nixpacks.toml`
