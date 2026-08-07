@@ -8,21 +8,21 @@ import {
 } from "@/lib/api";
 
 interface AlertCaptureProps {
-  skillLevel: SkillLevel;
-  domains: DomainCategory[];
-  country: string;
+  skillLevel?: SkillLevel;
+  domains?: DomainCategory[];
+  country?: string;
   freeText?: string;
   profileId?: string;
-  compact?: boolean;
+  variant?: "banner" | "panel";
 }
 
 export function AlertCapture({
-  skillLevel,
-  domains,
-  country,
+  skillLevel = "beginner",
+  domains = [],
+  country = "IN",
   freeText,
   profileId,
-  compact = false,
+  variant = "panel",
 }: AlertCaptureProps) {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">(
@@ -50,42 +50,70 @@ export function AlertCapture({
     }
   }
 
+  if (variant === "banner") {
+    return (
+      <div className="bg-navy px-4 py-10 text-center text-white md:py-14">
+        <h1 className="mx-auto max-w-3xl text-3xl font-semibold tracking-tight md:text-4xl">
+          Discover hackathons & data science competitions
+        </h1>
+        <p className="mt-4 text-sm text-white/70">
+          Sign up to the mailing list for weekly matches.
+        </p>
+        {status === "done" ? (
+          <p className="mt-6 text-sm text-white/90">{message}</p>
+        ) : (
+          <form
+            onSubmit={onSubmit}
+            className="mx-auto mt-6 flex max-w-md flex-col gap-2 sm:flex-row"
+          >
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email address"
+              className="w-full rounded-md border-0 px-3 py-2.5 text-sm text-ink outline-none"
+            />
+            <button
+              type="submit"
+              disabled={status === "loading"}
+              className="rounded-md bg-accent px-5 py-2.5 text-sm font-semibold text-white hover:bg-accent-hover disabled:opacity-60"
+            >
+              {status === "loading" ? "Saving…" : "Subscribe"}
+            </button>
+          </form>
+        )}
+        {status === "error" && (
+          <p className="mt-3 text-sm text-red-300">{message}</p>
+        )}
+      </div>
+    );
+  }
+
   return (
-    <div
-      className={
-        compact
-          ? "border-t border-[var(--line)] pt-5"
-          : "rounded-2xl border border-[var(--line)] bg-white/[0.03] p-6"
-      }
-    >
-      <h3 className="display text-xl font-bold text-foam">
-        Get weekly matches by email
-      </h3>
-      <p className="mt-2 max-w-xl text-sm leading-relaxed text-mist">
-        Narrow searches often return nothing today. Alerts convert dead queries
-        into notifications when a finishable competition opens.
+    <div className="rounded-lg border border-line bg-soft p-5">
+      <h3 className="text-base font-semibold text-ink">Get weekly matches</h3>
+      <p className="mt-1 text-sm text-muted">
+        We’ll email you when finishable competitions open that match your filters.
       </p>
       {status === "done" ? (
-        <p className="mt-4 text-sm text-teal-bright">{message}</p>
+        <p className="mt-4 text-sm text-link">{message}</p>
       ) : (
-        <form
-          onSubmit={onSubmit}
-          className="mt-4 flex flex-col gap-3 sm:flex-row"
-        >
+        <form onSubmit={onSubmit} className="mt-4 flex flex-col gap-2 sm:flex-row">
           <input
             type="email"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@college.edu"
-            className="w-full rounded-md border border-[var(--line)] bg-ink/40 px-4 py-3 text-sm text-foam outline-none ring-teal/40 placeholder:text-mist/60 focus:ring-2"
+            className="w-full rounded-md border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-accent"
           />
           <button
             type="submit"
             disabled={status === "loading"}
-            className="whitespace-nowrap rounded-md bg-amber px-5 py-3 text-sm font-semibold text-ink transition hover:bg-amber-soft disabled:opacity-60"
+            className="rounded-md bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:bg-accent-hover disabled:opacity-60"
           >
-            {status === "loading" ? "Saving…" : "Join alerts"}
+            {status === "loading" ? "Saving…" : "Subscribe"}
           </button>
         </form>
       )}

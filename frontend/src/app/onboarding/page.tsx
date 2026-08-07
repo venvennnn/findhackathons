@@ -78,164 +78,159 @@ function OnboardingForm() {
   }
 
   return (
-    <main className="grain min-h-screen">
-      <div className="relative z-10">
-        <SiteHeader />
-        <div className="mx-auto max-w-3xl px-5 py-10 md:px-8 md:py-14">
-          <p className="text-xs uppercase tracking-[0.18em] text-teal-bright">
-            90-second onboarding
-          </p>
-          <h1 className="display mt-3 text-4xl font-extrabold tracking-tight text-foam md:text-5xl">
-            Tell us what you can finish
-          </h1>
-          <p className="mt-4 max-w-2xl text-base leading-relaxed text-mist">
-            Mix free-text with a few filters. We’ll hard-filter deadlines and
-            eligibility, then rank a shortlist with a one-sentence fit reason.
-          </p>
+    <main className="min-h-screen bg-white">
+      <SiteHeader />
+      <div className="mx-auto max-w-2xl px-4 py-10 md:px-6">
+        <h1 className="text-2xl font-semibold tracking-tight text-ink md:text-3xl">
+          Tell us what you can finish
+        </h1>
+        <p className="mt-2 text-sm leading-relaxed text-muted">
+          A few filters plus free text. We’ll return a shortlist with one-sentence fit
+          reasons.
+        </p>
 
-          <form onSubmit={onSubmit} className="mt-10 space-y-8">
+        <form onSubmit={onSubmit} className="mt-8 space-y-6">
+          <label className="block">
+            <span className="text-sm font-medium text-ink">Describe yourself</span>
+            <textarea
+              value={freeText}
+              onChange={(e) => setFreeText(e.target.value)}
+              rows={4}
+              className="mt-1.5 w-full rounded-md border border-line px-3 py-2.5 text-sm outline-none focus:border-accent"
+            />
+          </label>
+
+          <div className="grid gap-4 sm:grid-cols-2">
             <label className="block">
-              <span className="text-sm font-medium text-foam">Describe yourself</span>
-              <textarea
-                value={freeText}
-                onChange={(e) => setFreeText(e.target.value)}
-                rows={4}
-                className="mt-2 w-full rounded-md border border-[var(--line)] bg-ink/35 px-4 py-3 text-sm text-foam outline-none ring-teal/40 focus:ring-2"
+              <span className="text-sm font-medium text-ink">Name (optional)</span>
+              <input
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="Priya"
+                className="mt-1.5 w-full rounded-md border border-line px-3 py-2.5 text-sm outline-none focus:border-accent"
               />
             </label>
+            <label className="block">
+              <span className="text-sm font-medium text-ink">
+                Email {alertsEnabled ? "(required for alerts)" : "(optional)"}
+              </span>
+              <input
+                type="email"
+                value={email}
+                required={alertsEnabled}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="priya@college.edu"
+                className="mt-1.5 w-full rounded-md border border-line px-3 py-2.5 text-sm outline-none focus:border-accent"
+              />
+            </label>
+          </div>
 
-            <div className="grid gap-5 md:grid-cols-2">
-              <label className="block">
-                <span className="text-sm font-medium text-foam">Name (optional)</span>
-                <input
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="Priya"
-                  className="mt-2 w-full rounded-md border border-[var(--line)] bg-ink/35 px-4 py-3 text-sm text-foam outline-none ring-teal/40 focus:ring-2"
-                />
-              </label>
-              <label className="block">
-                <span className="text-sm font-medium text-foam">
-                  Email {alertsEnabled ? "(required for alerts)" : "(optional)"}
-                </span>
-                <input
-                  type="email"
-                  value={email}
-                  required={alertsEnabled}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="priya@college.edu"
-                  className="mt-2 w-full rounded-md border border-[var(--line)] bg-ink/35 px-4 py-3 text-sm text-foam outline-none ring-teal/40 focus:ring-2"
-                />
-              </label>
-            </div>
-
-            <div className="grid gap-5 md:grid-cols-2">
-              <label className="block">
-                <span className="text-sm font-medium text-foam">Skill level</span>
-                <select
-                  value={skillLevel}
-                  onChange={(e) => setSkillLevel(e.target.value as SkillLevel)}
-                  className="mt-2 w-full rounded-md border border-[var(--line)] bg-ink/35 px-4 py-3 text-sm text-foam outline-none ring-teal/40 focus:ring-2"
-                >
-                  <option value="beginner">Beginner</option>
-                  <option value="intermediate">Intermediate</option>
-                  <option value="advanced">Advanced</option>
-                </select>
-              </label>
-              <label className="block">
-                <span className="text-sm font-medium text-foam">Country</span>
-                <select
-                  value={country}
-                  onChange={(e) => setCountry(e.target.value)}
-                  className="mt-2 w-full rounded-md border border-[var(--line)] bg-ink/35 px-4 py-3 text-sm text-foam outline-none ring-teal/40 focus:ring-2"
-                >
-                  <option value="IN">India</option>
-                  <option value="US">United States</option>
-                  <option value="GB">United Kingdom</option>
-                  <option value="SG">Singapore</option>
-                  <option value="GLOBAL">Global / Other</option>
-                </select>
-              </label>
-            </div>
-
-            <fieldset>
-              <legend className="text-sm font-medium text-foam">Domains</legend>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {DOMAIN_OPTIONS.map((option) => {
-                  const active = domainSet.has(option.value);
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => toggleDomain(option.value)}
-                      className={`rounded-md border px-3 py-2 text-sm transition ${
-                        active
-                          ? "border-teal bg-teal/20 text-teal-bright"
-                          : "border-[var(--line)] text-mist hover:border-mist/40 hover:text-foam"
-                      }`}
-                    >
-                      {option.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </fieldset>
-
-            <div className="grid gap-3 text-sm text-mist md:grid-cols-2">
-              <label className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  checked={preferStarter}
-                  onChange={(e) => setPreferStarter(e.target.checked)}
-                  className="size-4 accent-teal"
-                />
-                Prefer competitions with starter code
-              </label>
-              <label className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  checked={studentsOnlyOk}
-                  onChange={(e) => setStudentsOnlyOk(e.target.checked)}
-                  className="size-4 accent-teal"
-                />
-                Student-only events are OK
-              </label>
-              <label className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  checked={canTravel}
-                  onChange={(e) => setCanTravel(e.target.checked)}
-                  className="size-4 accent-teal"
-                />
-                I can travel for in-person events
-              </label>
-              <label className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  checked={alertsEnabled}
-                  onChange={(e) => setAlertsEnabled(e.target.checked)}
-                  className="size-4 accent-teal"
-                />
-                Email me weekly when matches open
-              </label>
-            </div>
-
-            {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
-
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                type="submit"
-                disabled={pending || domains.length === 0}
-                className="rounded-md bg-amber px-6 py-3.5 text-sm font-semibold text-ink transition hover:bg-amber-soft disabled:opacity-60"
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block">
+              <span className="text-sm font-medium text-ink">Skill level</span>
+              <select
+                value={skillLevel}
+                onChange={(e) => setSkillLevel(e.target.value as SkillLevel)}
+                className="mt-1.5 w-full rounded-md border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-accent"
               >
-                {pending ? "Matching…" : "Show my shortlist"}
-              </button>
-              <Link href="/" className="text-sm text-mist hover:text-foam">
-                Back to home
-              </Link>
+                <option value="beginner">Beginner</option>
+                <option value="intermediate">Intermediate</option>
+                <option value="advanced">Advanced</option>
+              </select>
+            </label>
+            <label className="block">
+              <span className="text-sm font-medium text-ink">Country</span>
+              <select
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+                className="mt-1.5 w-full rounded-md border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-accent"
+              >
+                <option value="IN">India</option>
+                <option value="US">United States</option>
+                <option value="GB">United Kingdom</option>
+                <option value="SG">Singapore</option>
+                <option value="GLOBAL">Global / Other</option>
+              </select>
+            </label>
+          </div>
+
+          <fieldset>
+            <legend className="text-sm font-medium text-ink">Domains</legend>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {DOMAIN_OPTIONS.map((option) => {
+                const active = domainSet.has(option.value);
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => toggleDomain(option.value)}
+                    className={`rounded border px-2.5 py-1 text-xs ${
+                      active
+                        ? "border-ink bg-ink text-white"
+                        : "border-line text-muted hover:border-ink/30"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
             </div>
-          </form>
-        </div>
+          </fieldset>
+
+          <div className="grid gap-2 text-sm text-muted sm:grid-cols-2">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={preferStarter}
+                onChange={(e) => setPreferStarter(e.target.checked)}
+                className="size-3.5 accent-accent"
+              />
+              Prefer starter code
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={studentsOnlyOk}
+                onChange={(e) => setStudentsOnlyOk(e.target.checked)}
+                className="size-3.5 accent-accent"
+              />
+              Student-only events OK
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={canTravel}
+                onChange={(e) => setCanTravel(e.target.checked)}
+                className="size-3.5 accent-accent"
+              />
+              Can travel for in-person
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={alertsEnabled}
+                onChange={(e) => setAlertsEnabled(e.target.checked)}
+                className="size-3.5 accent-accent"
+              />
+              Email weekly matches
+            </label>
+          </div>
+
+          {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
+
+          <div className="flex flex-wrap items-center gap-4">
+            <button
+              type="submit"
+              disabled={pending || domains.length === 0}
+              className="rounded-md bg-accent px-5 py-2.5 text-sm font-semibold text-white hover:bg-accent-hover disabled:opacity-60"
+            >
+              {pending ? "Matching…" : "Show my shortlist"}
+            </button>
+            <Link href="/" className="text-sm text-muted hover:text-ink">
+              Back to competitions
+            </Link>
+          </div>
+        </form>
       </div>
     </main>
   );
@@ -245,8 +240,8 @@ export default function OnboardingPage() {
   return (
     <Suspense
       fallback={
-        <main className="grid min-h-screen place-items-center text-mist">
-          Loading onboarding…
+        <main className="grid min-h-screen place-items-center bg-white text-muted">
+          Loading…
         </main>
       }
     >

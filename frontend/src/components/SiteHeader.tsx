@@ -2,21 +2,26 @@ import Link from "next/link";
 
 export function SiteHeader() {
   return (
-    <header className="relative z-20 mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-5 md:px-8">
-      <Link href="/" className="display text-lg font-extrabold tracking-tight md:text-xl">
-        Find<span className="text-teal-bright">Hackathons</span>
-      </Link>
-      <nav className="flex items-center gap-4 text-sm text-mist">
-        <Link href="/onboarding" className="transition hover:text-foam">
-          Find matches
+    <header className="border-b border-line bg-white">
+      <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-3 md:px-6">
+        <Link href="/" className="text-[15px] font-semibold tracking-tight text-ink">
+          FindHackathons
         </Link>
-        <Link
-          href="/onboarding"
-          className="rounded-md bg-teal px-3.5 py-2 font-medium text-ink transition hover:bg-teal-bright"
-        >
-          Start free
-        </Link>
-      </nav>
+        <nav className="flex items-center gap-5 text-sm text-muted">
+          <Link href="/" className="hover:text-ink">
+            Competitions
+          </Link>
+          <Link href="/onboarding" className="hover:text-ink">
+            Match me
+          </Link>
+          <Link
+            href="/onboarding?mode=alerts"
+            className="hidden text-ink hover:text-link sm:inline"
+          >
+            Get alerts →
+          </Link>
+        </nav>
+      </div>
     </header>
   );
 }

@@ -1,81 +1,217 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { AlertCapture } from "@/components/AlertCapture";
+import { ListingResult } from "@/components/ListingResult";
 import { SiteHeader } from "@/components/SiteHeader";
+import {
+  DOMAIN_OPTIONS,
+  DomainCategory,
+  Listing,
+  SkillLevel,
+  getListings,
+} from "@/lib/api";
+
+const SKILL_FILTERS: { value: SkillLevel | "all"; label: string }[] = [
+  { value: "all", label: "All levels" },
+  { value: "beginner", label: "Beginner" },
+  { value: "intermediate", label: "Intermediate" },
+  { value: "advanced", label: "Advanced" },
+];
+
+const SOURCE_FILTERS = [
+  { value: "all", label: "All platforms" },
+  { value: "devfolio", label: "Devfolio" },
+  { value: "unstop", label: "Unstop" },
+  { value: "kaggle", label: "Kaggle" },
+  { value: "devpost", label: "Devpost" },
+];
 
 export default function HomePage() {
-  return (
-    <main className="grain min-h-screen overflow-hidden">
-      <section className="relative min-h-screen">
-        <div
-          aria-hidden
-          className="absolute inset-0 bg-cover bg-center"
-          style={{
-            backgroundImage:
-              "url('https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=2000&q=80')",
-          }}
-        />
-        <div
-          aria-hidden
-          className="absolute inset-0 bg-gradient-to-r from-[#061019]/94 via-[#07131f]/82 to-[#082029]/55"
-        />
-        <div
-          aria-hidden
-          className="hero-glow absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(47,212,200,0.22),transparent_40%),radial-gradient(circle_at_80%_10%,rgba(232,163,23,0.16),transparent_35%)]"
-        />
+  const [listings, setListings] = useState<Listing[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [skill, setSkill] = useState<SkillLevel | "all">("all");
+  const [domain, setDomain] = useState<DomainCategory | "all">("all");
+  const [source, setSource] = useState("all");
+  const [starterOnly, setStarterOnly] = useState(false);
 
-        <div className="relative z-10 flex min-h-screen flex-col">
-          <SiteHeader />
-          <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-end px-5 pb-16 pt-10 md:px-8 md:pb-24">
-            <p className="fade-up display text-5xl font-extrabold tracking-tight text-foam sm:text-6xl md:text-7xl lg:text-8xl">
-              FindHackathons
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      setError("");
+      try {
+        const params: Record<string, string> = { limit: "40" };
+        if (skill !== "all") params.skill_level = skill;
+        if (source !== "all") params.source = source;
+        if (starterOnly) params.has_starter_code = "true";
+        const data = await getListings(params);
+        if (!cancelled) setListings(data);
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Failed to load listings");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [skill, source, starterOnly]);
+
+  const filtered = useMemo(() => {
+    if (domain === "all") return listings;
+    return listings.filter((item) => item.domains.includes(domain));
+  }, [listings, domain]);
+
+  function resetFilters() {
+    setSkill("all");
+    setDomain("all");
+    setSource("all");
+    setStarterOnly(false);
+  }
+
+  return (
+    <main className="min-h-screen bg-white">
+      <SiteHeader />
+      <AlertCapture variant="banner" />
+
+      <div className="mx-auto grid max-w-6xl gap-8 px-4 py-8 md:grid-cols-[220px_1fr] md:px-6 lg:grid-cols-[240px_1fr]">
+        <aside className="space-y-7 text-sm">
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-faint">
+              Skill level
             </p>
-            <h1 className="fade-up-delay mt-5 max-w-2xl text-2xl font-medium leading-snug text-foam md:text-3xl">
-              Finishable competitions, matched to your skill — not just another link dump.
-            </h1>
-            <p className="fade-up-delay-2 mt-5 max-w-xl text-base leading-relaxed text-mist md:text-lg">
-              Built for students and early-career builders in India and beyond.
-              Shortlist 3–5 active hackathons you can actually ship.
-            </p>
-            <div className="fade-up-delay-2 mt-8 flex flex-wrap items-center gap-3">
-              <Link
-                href="/onboarding"
-                className="rounded-md bg-amber px-6 py-3.5 text-sm font-semibold text-ink transition hover:bg-amber-soft"
-              >
-                Find my matches
-              </Link>
-              <Link
-                href="/onboarding?mode=alerts"
-                className="rounded-md border border-foam/25 bg-ink/30 px-6 py-3.5 text-sm font-medium text-foam backdrop-blur-sm transition hover:border-teal/50 hover:text-teal-bright"
-              >
-                Set up alerts
-              </Link>
+            <div className="flex flex-wrap gap-1.5">
+              {SKILL_FILTERS.map((item) => (
+                <button
+                  key={item.value}
+                  type="button"
+                  onClick={() => setSkill(item.value)}
+                  className={`rounded border px-2.5 py-1 text-xs ${
+                    skill === item.value
+                      ? "border-ink bg-ink text-white"
+                      : "border-line text-muted hover:border-ink/30"
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
             </div>
           </div>
-        </div>
-      </section>
 
-      <section className="relative z-10 border-t border-[var(--line)] bg-[#061019]/90">
-        <div className="mx-auto grid max-w-6xl gap-10 px-5 py-16 md:grid-cols-3 md:px-8">
-          {[
-            {
-              title: "Structured metadata",
-              body: "Domains, skill floor, travel rules, and student-only flags — extracted automatically.",
-            },
-            {
-              title: "Beginner-first ranking",
-              body: "Starter repos and finishable timelines surface first when you’re still building confidence.",
-            },
-            {
-              title: "Alerts that retain",
-              body: "When filters are too narrow today, we email you the moment a match opens.",
-            },
-          ].map((item) => (
-            <div key={item.title}>
-              <h2 className="display text-xl font-bold text-foam">{item.title}</h2>
-              <p className="mt-3 text-sm leading-relaxed text-mist">{item.body}</p>
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-faint">
+              Domains
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                onClick={() => setDomain("all")}
+                className={`rounded border px-2.5 py-1 text-xs ${
+                  domain === "all"
+                    ? "border-ink bg-ink text-white"
+                    : "border-line text-muted hover:border-ink/30"
+                }`}
+              >
+                All
+              </button>
+              {DOMAIN_OPTIONS.map((item) => (
+                <button
+                  key={item.value}
+                  type="button"
+                  onClick={() => setDomain(item.value)}
+                  className={`rounded border px-2.5 py-1 text-xs ${
+                    domain === item.value
+                      ? "border-ink bg-ink text-white"
+                      : "border-line text-muted hover:border-ink/30"
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
             </div>
-          ))}
-        </div>
-      </section>
+          </div>
+
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-faint">
+              Platform
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {SOURCE_FILTERS.map((item) => (
+                <button
+                  key={item.value}
+                  type="button"
+                  onClick={() => setSource(item.value)}
+                  className={`rounded border px-2.5 py-1 text-xs ${
+                    source === item.value
+                      ? "border-ink bg-ink text-white"
+                      : "border-line text-muted hover:border-ink/30"
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <label className="flex items-center gap-2 text-xs text-muted">
+            <input
+              type="checkbox"
+              checked={starterOnly}
+              onChange={(e) => setStarterOnly(e.target.checked)}
+              className="size-3.5 accent-accent"
+            />
+            Has starter code
+          </label>
+
+          <Link
+            href="/onboarding"
+            className="inline-block text-sm font-medium text-link hover:underline"
+          >
+            Personalized matching →
+          </Link>
+        </aside>
+
+        <section>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-line pb-3">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-faint">
+              Competitions ({loading ? "…" : filtered.length})
+            </h2>
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="text-xs text-muted hover:text-ink"
+            >
+              Reset filters
+            </button>
+          </div>
+
+          {loading && <p className="py-10 text-sm text-muted">Loading competitions…</p>}
+          {error && (
+            <p className="py-10 text-sm text-[var(--danger)]">
+              {error}. Is the API running?
+            </p>
+          )}
+          {!loading && !error && filtered.length === 0 && (
+            <div className="space-y-4 py-10">
+              <p className="text-sm text-muted">
+                No competitions match these filters. Try broadening them or get alerts.
+              </p>
+              <AlertCapture variant="panel" />
+            </div>
+          )}
+          {!loading &&
+            !error &&
+            filtered.map((listing) => (
+              <ListingResult key={listing.id} listing={listing} />
+            ))}
+        </section>
+      </div>
     </main>
   );
 }

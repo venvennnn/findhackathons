@@ -9,24 +9,20 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: "var(--ink)",
-        foam: "var(--foam)",
-        mist: "var(--mist)",
-        teal: {
-          DEFAULT: "var(--teal)",
-          bright: "var(--teal-bright)",
+        ink: "var(--text)",
+        muted: "var(--text-muted)",
+        faint: "var(--text-faint)",
+        line: "var(--border)",
+        link: "var(--link)",
+        accent: {
+          DEFAULT: "var(--accent)",
+          hover: "var(--accent-hover)",
         },
-        amber: {
-          DEFAULT: "var(--amber)",
-          soft: "var(--amber-soft)",
-        },
+        navy: "var(--navy)",
+        soft: "var(--bg-muted)",
       },
       fontFamily: {
-        display: ["var(--font-display)", "sans-serif"],
-        body: ["var(--font-body)", "sans-serif"],
-      },
-      boxShadow: {
-        glow: "var(--shadow)",
+        sans: ["var(--font-body)", "sans-serif"],
       },
     },
   },

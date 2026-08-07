@@ -65,87 +65,61 @@ function FeedContent() {
   }, [params.toString()]);
 
   return (
-    <main className="grain min-h-screen">
-      <div className="relative z-10">
-        <SiteHeader />
-        <div className="mx-auto max-w-4xl px-5 py-10 md:px-8 md:py-14">
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <p className="text-xs uppercase tracking-[0.18em] text-teal-bright">
-                Your shortlist
-              </p>
-              <h1 className="display mt-3 text-4xl font-extrabold tracking-tight text-foam md:text-5xl">
-                Competitions you can finish
-              </h1>
-            </div>
-            <Link
-              href="/onboarding"
-              className="text-sm text-mist underline-offset-4 hover:text-foam hover:underline"
-            >
-              Refine filters
-            </Link>
+    <main className="min-h-screen bg-white">
+      <SiteHeader />
+      <div className="mx-auto max-w-3xl px-4 py-10 md:px-6">
+        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-line pb-4">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-ink">
+              Your shortlist
+            </h1>
+            <p className="mt-1 text-sm text-muted">
+              Ranked for finishability and fit
+            </p>
           </div>
-
-          {loading && (
-            <p className="mt-12 text-mist">Ranking active listings…</p>
-          )}
-          {error && (
-            <div className="mt-10 space-y-4">
-              <p className="text-[var(--danger)]">{error}</p>
-              <p className="text-sm text-mist">
-                Is the API running at{" "}
-                <code className="text-teal-bright">
-                  {process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}
-                </code>
-                ?
-              </p>
-            </div>
-          )}
-
-          {!loading && !error && data && (
-            <>
-              {data.message && (
-                <p className="mt-6 max-w-2xl text-sm leading-relaxed text-amber-soft">
-                  {data.message}
-                </p>
-              )}
-              <p className="mt-3 text-sm text-mist">
-                {data.total_candidates} active candidate
-                {data.total_candidates === 1 ? "" : "s"} after hard filters
-                {data.broadened ? " · domain criteria broadened" : ""}
-              </p>
-
-              <div className="mt-10">
-                {data.matches.length === 0 ? (
-                  <p className="text-foam">
-                    No active competitions survived your filters. Join alerts
-                    below and we’ll notify you when something opens.
-                  </p>
-                ) : (
-                  data.matches.map((listing, index) => (
-                    <ListingResult
-                      key={listing.id}
-                      listing={listing}
-                      index={index}
-                    />
-                  ))
-                )}
-              </div>
-
-              {(data.suggest_alerts || data.matches.length > 0) && (
-                <div className="mt-12">
-                  <AlertCapture
-                    skillLevel={skillLevel}
-                    domains={domains}
-                    country={country}
-                    freeText={freeText}
-                    profileId={profileId}
-                  />
-                </div>
-              )}
-            </>
-          )}
+          <Link href="/onboarding" className="text-sm text-link hover:underline">
+            Refine filters
+          </Link>
         </div>
+
+        {loading && <p className="mt-8 text-sm text-muted">Ranking competitions…</p>}
+        {error && <p className="mt-8 text-sm text-[var(--danger)]">{error}</p>}
+
+        {!loading && !error && data && (
+          <>
+            {data.message && (
+              <p className="mt-4 text-sm text-muted">{data.message}</p>
+            )}
+            <p className="mt-2 text-xs uppercase tracking-wide text-faint">
+              {data.total_candidates} candidate
+              {data.total_candidates === 1 ? "" : "s"}
+              {data.broadened ? " · broadened" : ""}
+            </p>
+
+            <div className="mt-6">
+              {data.matches.length === 0 ? (
+                <p className="text-sm text-muted">
+                  No active competitions survived your filters. Subscribe below for
+                  alerts.
+                </p>
+              ) : (
+                data.matches.map((listing) => (
+                  <ListingResult key={listing.id} listing={listing} />
+                ))
+              )}
+            </div>
+
+            <div className="mt-8">
+              <AlertCapture
+                skillLevel={skillLevel}
+                domains={domains}
+                country={country}
+                freeText={freeText}
+                profileId={profileId}
+              />
+            </div>
+          </>
+        )}
       </div>
     </main>
   );
@@ -155,8 +129,8 @@ export default function FeedPage() {
   return (
     <Suspense
       fallback={
-        <main className="grid min-h-screen place-items-center text-mist">
-          Loading feed…
+        <main className="grid min-h-screen place-items-center bg-white text-muted">
+          Loading…
         </main>
       }
     >
