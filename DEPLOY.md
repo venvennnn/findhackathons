@@ -70,6 +70,8 @@ Railway is analyzing the monorepo root without a Dockerfile config. Do one of:
 
 Config in this repo: `frontend/vercel.json`.
 
+The Next.js app proxies `/api/*` to Railway, so the browser never needs a public API URL.
+
 1. Go to [vercel.com](https://vercel.com) → **Add New Project** → import this GitHub repo.
 2. Set **Root Directory** to `frontend`.
 3. Framework preset: **Next.js** (auto-detected).
@@ -77,14 +79,19 @@ Config in this repo: `frontend/vercel.json`.
 
 | Variable | Value |
 | --- | --- |
-| `NEXT_PUBLIC_API_URL` | Railway public URL, **no trailing slash** (e.g. `https://findhackathons-api.up.railway.app`) |
+| `BACKEND_URL` | Railway public URL, **no trailing slash** (e.g. `https://findhackathons-api.up.railway.app`) |
 
-5. Deploy.
+> If you previously set `NEXT_PUBLIC_API_URL` to your **Vercel** URL, that causes the HTML 404 dump on the homepage. Remove it or replace with the Railway URL, and prefer `BACKEND_URL`.
+
+5. Deploy / Redeploy.
 6. Optional custom domain:
    - Vercel → Project → **Domains** → add `findhackathons.com`
    - Point DNS as Vercel instructs (usually A/`@` + CNAME `www`)
-7. Update Railway `CORS_ORIGINS` to include your final Vercel / custom domain, then redeploy the API.
+7. Update Railway `CORS_ORIGINS` to include your final Vercel / custom domain (still useful for direct API access), then redeploy the API.
 
+Quick checks:
+- Railway: `https://YOUR-RAILWAY-URL/api/health` → JSON `"status":"ok"`
+- Vercel site should list competitions, not show raw HTML
 ---
 
 ## 4. Ingestion worker (Modal) — optional
