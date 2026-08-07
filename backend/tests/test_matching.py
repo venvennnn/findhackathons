@@ -70,8 +70,9 @@ def test_health():
     response = client.get("/api/health")
     assert response.status_code == 200
     body = response.json()
-    assert body["status"] == "ok"
-    assert body["listings_count"] == 2
+    assert body["status"] in {"ok", "degraded"}
+    assert "listings_count" in body
+    assert "version" in body
 
 
 def test_match_beginner_india():

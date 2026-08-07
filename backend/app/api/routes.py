@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from sqlmodel import Session, col, select
 
 from app.core.config import get_settings
-from app.core.database import get_session
+from app.core.database import engine, get_session
 from app.models.db import AlertSubscription, Listing, UserProfile, utcnow
 from app.models.enums import DomainCategory, SkillLevel, SourcePlatform
 from app.models.schemas import (
@@ -45,16 +45,25 @@ def _profile_to_read(profile: UserProfile) -> ProfileRead:
     )
 
 
-@router.get("/health", response_model=HealthResponse)
-def health(session: Session = Depends(get_session)) -> HealthResponse:
+@router.get("/health")
+def health() -> dict:
+    """Liveness endpoint used by Railway. Returns 200 if the process is up."""
     settings = get_settings()
-    count = len(session.exec(select(Listing)).all())
-    return HealthResponse(
-        status="ok",
-        version=settings.app_version,
-        listings_count=count,
-        environment=settings.environment,
-    )
+    payload = {
+        "status": "ok",
+        "version": settings.app_version,
+        "listings_count": 0,
+        "environment": settings.environment,
+        "database": "ok",
+    }
+    try:
+        with Session(engine) as session:
+            payload["listings_count"] = len(session.exec(select(Listing)).all())
+    except Exception as exc:  # noqa: BLE001
+        payload["status"] = "degraded"
+        payload["database"] = "error"
+        payload["database_error"] = str(exc)
+    return payload
 
 
 @router.get("/listings", response_model=List[ListingRead])

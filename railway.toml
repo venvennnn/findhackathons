@@ -1,5 +1,5 @@
-# Used when Railway builds from the monorepo root (no Root Directory set).
-# Preferred alternative: set service Root Directory to `backend` and use backend/railway.toml.
+# Used when Railway builds from the monorepo root.
+# Relies on Dockerfile CMD for process start.
 
 [build]
 builder = "DOCKERFILE"
@@ -7,8 +7,7 @@ dockerfilePath = "Dockerfile"
 watchPatterns = ["backend/**", "Dockerfile", "railway.toml"]
 
 [deploy]
-startCommand = "sh -c 'uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}'"
 healthcheckPath = "/api/health"
-healthcheckTimeout = 100
+healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 5
