@@ -105,7 +105,14 @@ export default function HomePage() {
 
             {loading && <p className="py-12 text-sm text-muted">Loading…</p>}
             {error && (
-              <p className="py-12 text-sm text-[var(--danger)]">{error}</p>
+              <div className="space-y-2 py-12">
+                <p className="text-sm text-[var(--danger)]">{error}</p>
+                <p className="text-sm text-muted">
+                  Set Vercel env <code className="text-ink">BACKEND_URL</code> to
+                  your Railway URL, then redeploy. Check{" "}
+                  <code className="text-ink">/api/health</code> on Railway first.
+                </p>
+              </div>
             )}
             {!loading && !error && filtered.length === 0 && (
               <p className="py-12 text-sm text-muted">

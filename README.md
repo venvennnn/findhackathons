@@ -90,7 +90,7 @@ Quick path:
 
 1. **Supabase** — create Postgres; copy `DATABASE_URL`.
 2. **Railway** — deploy API via root `Dockerfile` (or set Root Directory to `backend`); set `DATABASE_URL`, `CORS_ORIGINS`, `INGEST_TOKEN`.
-3. **Vercel** — deploy `frontend/` (see `frontend/vercel.json`); set `NEXT_PUBLIC_API_URL` to the Railway URL.
+3. **Vercel** — deploy `frontend/`; set `BACKEND_URL` to the Railway URL (not the Vercel URL).
 4. **Modal** (optional) — `modal deploy worker/modal_app.py` for live scraping every 6 hours.
 5. Attach custom DNS for `findhackathons.com` in Vercel.
 

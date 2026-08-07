@@ -1,5 +1,3 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
 export type SkillLevel = "beginner" | "intermediate" | "advanced";
 
 export type DomainCategory =
@@ -63,8 +61,34 @@ export interface Profile extends ProfilePayload {
   updated_at: string;
 }
 
+function friendlyError(status: number, text: string): string {
+  const trimmed = text.trim();
+  if (
+    trimmed.startsWith("<!DOCTYPE") ||
+    trimmed.startsWith("<html") ||
+    trimmed.includes("This page could not be found")
+  ) {
+    return (
+      "API not reachable (got an HTML 404). On Vercel, set BACKEND_URL to your Railway URL " +
+      "(e.g. https://your-app.up.railway.app) and redeploy."
+    );
+  }
+  try {
+    const parsed = JSON.parse(trimmed) as { detail?: string; message?: string };
+    if (parsed.detail) return String(parsed.detail);
+    if (parsed.message) return String(parsed.message);
+  } catch {
+    // not JSON
+  }
+  if (trimmed.length > 180) {
+    return `Request failed (${status}). Check BACKEND_URL / Railway health.`;
+  }
+  return trimmed || `Request failed (${status})`;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
+  // Same-origin /api/* is proxied by Next.js to Railway (BACKEND_URL).
+  const response = await fetch(path, {
     ...init,
     headers: {
       "Content-Type": "application/json",
@@ -74,7 +98,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(text || `Request failed: ${response.status}`);
+    throw new Error(friendlyError(response.status, text));
   }
   return response.json() as Promise<T>;
 }
