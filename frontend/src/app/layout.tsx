@@ -9,9 +9,9 @@ const sourceSans = Source_Sans_3({
 });
 
 export const metadata: Metadata = {
-  title: "FindHackathons — Discover finishable hackathons & competitions",
+  title: "FindHackathons — Hackathons you can finish",
   description:
-    "Find beginner-friendly hackathons and data science competitions with clear eligibility, deadlines, and starter-code signals.",
+    "Active hackathons and data science competitions with skill level, eligibility, and starter-code signals.",
   metadataBase: new URL("https://findhackathons.com"),
 };
 

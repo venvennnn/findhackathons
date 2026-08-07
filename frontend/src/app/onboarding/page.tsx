@@ -80,58 +80,55 @@ function OnboardingForm() {
   return (
     <main className="min-h-screen bg-white">
       <SiteHeader />
-      <div className="mx-auto max-w-2xl px-4 py-10 md:px-6">
-        <h1 className="text-2xl font-semibold tracking-tight text-ink md:text-3xl">
-          Tell us what you can finish
+      <div className="mx-auto max-w-xl px-5 py-10">
+        <h1 className="text-2xl font-semibold tracking-tight text-ink">
+          Match me
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-muted">
-          A few filters plus free text. We’ll return a shortlist with one-sentence fit
-          reasons.
+          Short preferences in, ranked shortlist out.
         </p>
 
         <form onSubmit={onSubmit} className="mt-8 space-y-6">
           <label className="block">
-            <span className="text-sm font-medium text-ink">Describe yourself</span>
+            <span className="text-sm text-ink">About you</span>
             <textarea
               value={freeText}
               onChange={(e) => setFreeText(e.target.value)}
               rows={4}
-              className="mt-1.5 w-full rounded-md border border-line px-3 py-2.5 text-sm outline-none focus:border-accent"
+              className="mt-1.5 w-full border border-line px-3 py-2.5 text-sm outline-none focus:border-ink"
             />
           </label>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block">
-              <span className="text-sm font-medium text-ink">Name (optional)</span>
+              <span className="text-sm text-ink">Name</span>
               <input
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="Priya"
-                className="mt-1.5 w-full rounded-md border border-line px-3 py-2.5 text-sm outline-none focus:border-accent"
+                placeholder="Optional"
+                className="mt-1.5 w-full border border-line px-3 py-2.5 text-sm outline-none focus:border-ink"
               />
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-ink">
-                Email {alertsEnabled ? "(required for alerts)" : "(optional)"}
-              </span>
+              <span className="text-sm text-ink">Email</span>
               <input
                 type="email"
                 value={email}
                 required={alertsEnabled}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="priya@college.edu"
-                className="mt-1.5 w-full rounded-md border border-line px-3 py-2.5 text-sm outline-none focus:border-accent"
+                placeholder={alertsEnabled ? "Required for alerts" : "Optional"}
+                className="mt-1.5 w-full border border-line px-3 py-2.5 text-sm outline-none focus:border-ink"
               />
             </label>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block">
-              <span className="text-sm font-medium text-ink">Skill level</span>
+              <span className="text-sm text-ink">Skill</span>
               <select
                 value={skillLevel}
                 onChange={(e) => setSkillLevel(e.target.value as SkillLevel)}
-                className="mt-1.5 w-full rounded-md border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-accent"
+                className="mt-1.5 w-full border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-ink"
               >
                 <option value="beginner">Beginner</option>
                 <option value="intermediate">Intermediate</option>
@@ -139,11 +136,11 @@ function OnboardingForm() {
               </select>
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-ink">Country</span>
+              <span className="text-sm text-ink">Country</span>
               <select
                 value={country}
                 onChange={(e) => setCountry(e.target.value)}
-                className="mt-1.5 w-full rounded-md border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-accent"
+                className="mt-1.5 w-full border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-ink"
               >
                 <option value="IN">India</option>
                 <option value="US">United States</option>
@@ -155,8 +152,8 @@ function OnboardingForm() {
           </div>
 
           <fieldset>
-            <legend className="text-sm font-medium text-ink">Domains</legend>
-            <div className="mt-2 flex flex-wrap gap-1.5">
+            <legend className="text-sm text-ink">Domains</legend>
+            <div className="mt-2 flex flex-wrap gap-2">
               {DOMAIN_OPTIONS.map((option) => {
                 const active = domainSet.has(option.value);
                 return (
@@ -164,10 +161,8 @@ function OnboardingForm() {
                     key={option.value}
                     type="button"
                     onClick={() => toggleDomain(option.value)}
-                    className={`rounded border px-2.5 py-1 text-xs ${
-                      active
-                        ? "border-ink bg-ink text-white"
-                        : "border-line text-muted hover:border-ink/30"
+                    className={`px-2.5 py-1 text-sm ${
+                      active ? "bg-ink text-white" : "text-muted hover:text-ink"
                     }`}
                   >
                     {option.label}
@@ -177,13 +172,13 @@ function OnboardingForm() {
             </div>
           </fieldset>
 
-          <div className="grid gap-2 text-sm text-muted sm:grid-cols-2">
+          <div className="space-y-2 text-sm text-muted">
             <label className="flex items-center gap-2">
               <input
                 type="checkbox"
                 checked={preferStarter}
                 onChange={(e) => setPreferStarter(e.target.checked)}
-                className="size-3.5 accent-accent"
+                className="size-3.5"
               />
               Prefer starter code
             </label>
@@ -192,7 +187,7 @@ function OnboardingForm() {
                 type="checkbox"
                 checked={studentsOnlyOk}
                 onChange={(e) => setStudentsOnlyOk(e.target.checked)}
-                className="size-3.5 accent-accent"
+                className="size-3.5"
               />
               Student-only events OK
             </label>
@@ -201,16 +196,16 @@ function OnboardingForm() {
                 type="checkbox"
                 checked={canTravel}
                 onChange={(e) => setCanTravel(e.target.checked)}
-                className="size-3.5 accent-accent"
+                className="size-3.5"
               />
-              Can travel for in-person
+              Can travel
             </label>
             <label className="flex items-center gap-2">
               <input
                 type="checkbox"
                 checked={alertsEnabled}
                 onChange={(e) => setAlertsEnabled(e.target.checked)}
-                className="size-3.5 accent-accent"
+                className="size-3.5"
               />
               Email weekly matches
             </label>
@@ -218,16 +213,16 @@ function OnboardingForm() {
 
           {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
 
-          <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-4">
             <button
               type="submit"
               disabled={pending || domains.length === 0}
-              className="rounded-md bg-accent px-5 py-2.5 text-sm font-semibold text-white hover:bg-accent-hover disabled:opacity-60"
+              className="bg-ink px-4 py-2.5 text-sm font-medium text-white disabled:opacity-60"
             >
-              {pending ? "Matching…" : "Show my shortlist"}
+              {pending ? "Matching…" : "Show shortlist"}
             </button>
             <Link href="/" className="text-sm text-muted hover:text-ink">
-              Back to competitions
+              Cancel
             </Link>
           </div>
         </form>

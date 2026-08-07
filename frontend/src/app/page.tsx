@@ -13,29 +13,12 @@ import {
   getListings,
 } from "@/lib/api";
 
-const SKILL_FILTERS: { value: SkillLevel | "all"; label: string }[] = [
-  { value: "all", label: "All levels" },
-  { value: "beginner", label: "Beginner" },
-  { value: "intermediate", label: "Intermediate" },
-  { value: "advanced", label: "Advanced" },
-];
-
-const SOURCE_FILTERS = [
-  { value: "all", label: "All platforms" },
-  { value: "devfolio", label: "Devfolio" },
-  { value: "unstop", label: "Unstop" },
-  { value: "kaggle", label: "Kaggle" },
-  { value: "devpost", label: "Devpost" },
-];
-
 export default function HomePage() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [skill, setSkill] = useState<SkillLevel | "all">("all");
   const [domain, setDomain] = useState<DomainCategory | "all">("all");
-  const [source, setSource] = useState("all");
-  const [starterOnly, setStarterOnly] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -45,8 +28,6 @@ export default function HomePage() {
       try {
         const params: Record<string, string> = { limit: "40" };
         if (skill !== "all") params.skill_level = skill;
-        if (source !== "all") params.source = source;
-        if (starterOnly) params.has_starter_code = "true";
         const data = await getListings(params);
         if (!cancelled) setListings(data);
       } catch (err) {
@@ -61,156 +42,109 @@ export default function HomePage() {
     return () => {
       cancelled = true;
     };
-  }, [skill, source, starterOnly]);
+  }, [skill]);
 
   const filtered = useMemo(() => {
     if (domain === "all") return listings;
     return listings.filter((item) => item.domains.includes(domain));
   }, [listings, domain]);
 
-  function resetFilters() {
-    setSkill("all");
-    setDomain("all");
-    setSource("all");
-    setStarterOnly(false);
-  }
-
   return (
     <main className="min-h-screen bg-white">
       <SiteHeader />
-      <AlertCapture variant="banner" />
 
-      <div className="mx-auto grid max-w-6xl gap-8 px-4 py-8 md:grid-cols-[220px_1fr] md:px-6 lg:grid-cols-[240px_1fr]">
-        <aside className="space-y-7 text-sm">
-          <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-faint">
-              Skill level
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {SKILL_FILTERS.map((item) => (
-                <button
-                  key={item.value}
-                  type="button"
-                  onClick={() => setSkill(item.value)}
-                  className={`rounded border px-2.5 py-1 text-xs ${
-                    skill === item.value
-                      ? "border-ink bg-ink text-white"
-                      : "border-line text-muted hover:border-ink/30"
-                  }`}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          </div>
+      <div className="mx-auto max-w-5xl px-5 pb-16 pt-4">
+        <div className="max-w-xl">
+          <h1 className="text-3xl font-semibold tracking-tight text-ink md:text-4xl">
+            Hackathons you can finish
+          </h1>
+          <p className="mt-3 text-base leading-relaxed text-muted">
+            Active listings with skill level, eligibility, and starter-code signals —
+            filtered for students and early-career builders.
+          </p>
+        </div>
 
-          <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-faint">
-              Domains
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              <button
-                type="button"
-                onClick={() => setDomain("all")}
-                className={`rounded border px-2.5 py-1 text-xs ${
-                  domain === "all"
-                    ? "border-ink bg-ink text-white"
-                    : "border-line text-muted hover:border-ink/30"
-                }`}
+        <div className="mt-10 grid gap-12 lg:grid-cols-[minmax(0,1fr)_280px]">
+          <section>
+            <div className="flex flex-wrap items-center gap-2 border-b border-line pb-4">
+              {(["all", "beginner", "intermediate", "advanced"] as const).map(
+                (value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setSkill(value)}
+                    className={`px-2.5 py-1 text-sm ${
+                      skill === value
+                        ? "bg-ink text-white"
+                        : "text-muted hover:text-ink"
+                    }`}
+                  >
+                    {value === "all" ? "All" : value}
+                  </button>
+                ),
+              )}
+              <span className="mx-1 hidden h-4 w-px bg-line sm:inline-block" />
+              <select
+                value={domain}
+                onChange={(e) =>
+                  setDomain((e.target.value || "all") as DomainCategory | "all")
+                }
+                className="border-0 bg-transparent py-1 text-sm text-muted outline-none"
               >
-                All
-              </button>
-              {DOMAIN_OPTIONS.map((item) => (
-                <button
-                  key={item.value}
-                  type="button"
-                  onClick={() => setDomain(item.value)}
-                  className={`rounded border px-2.5 py-1 text-xs ${
-                    domain === item.value
-                      ? "border-ink bg-ink text-white"
-                      : "border-line text-muted hover:border-ink/30"
-                  }`}
-                >
-                  {item.label}
-                </button>
-              ))}
+                <option value="all">All domains</option>
+                {DOMAIN_OPTIONS.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+              <span className="ml-auto text-xs text-faint">
+                {loading ? "…" : `${filtered.length} open`}
+              </span>
             </div>
-          </div>
 
-          <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-faint">
-              Platform
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {SOURCE_FILTERS.map((item) => (
-                <button
-                  key={item.value}
-                  type="button"
-                  onClick={() => setSource(item.value)}
-                  className={`rounded border px-2.5 py-1 text-xs ${
-                    source === item.value
-                      ? "border-ink bg-ink text-white"
-                      : "border-line text-muted hover:border-ink/30"
-                  }`}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <label className="flex items-center gap-2 text-xs text-muted">
-            <input
-              type="checkbox"
-              checked={starterOnly}
-              onChange={(e) => setStarterOnly(e.target.checked)}
-              className="size-3.5 accent-accent"
-            />
-            Has starter code
-          </label>
-
-          <Link
-            href="/onboarding"
-            className="inline-block text-sm font-medium text-link hover:underline"
-          >
-            Personalized matching →
-          </Link>
-        </aside>
-
-        <section>
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-line pb-3">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-faint">
-              Competitions ({loading ? "…" : filtered.length})
-            </h2>
-            <button
-              type="button"
-              onClick={resetFilters}
-              className="text-xs text-muted hover:text-ink"
-            >
-              Reset filters
-            </button>
-          </div>
-
-          {loading && <p className="py-10 text-sm text-muted">Loading competitions…</p>}
-          {error && (
-            <p className="py-10 text-sm text-[var(--danger)]">
-              {error}. Is the API running?
-            </p>
-          )}
-          {!loading && !error && filtered.length === 0 && (
-            <div className="space-y-4 py-10">
-              <p className="text-sm text-muted">
-                No competitions match these filters. Try broadening them or get alerts.
+            {loading && <p className="py-12 text-sm text-muted">Loading…</p>}
+            {error && (
+              <p className="py-12 text-sm text-[var(--danger)]">{error}</p>
+            )}
+            {!loading && !error && filtered.length === 0 && (
+              <p className="py-12 text-sm text-muted">
+                Nothing matches right now. Try Match me on the right, or join alerts.
               </p>
-              <AlertCapture variant="panel" />
+            )}
+            <div className="divide-y divide-line">
+              {!loading &&
+                !error &&
+                filtered.map((listing) => (
+                  <ListingResult key={listing.id} listing={listing} />
+                ))}
             </div>
-          )}
-          {!loading &&
-            !error &&
-            filtered.map((listing) => (
-              <ListingResult key={listing.id} listing={listing} />
-            ))}
-        </section>
+          </section>
+
+          <aside className="lg:pt-1">
+            <div className="lg:sticky lg:top-8">
+              <h2 className="text-sm font-medium text-ink">Match me</h2>
+              <p className="mt-2 text-sm leading-relaxed text-muted">
+                Answer a few questions and get a shortlist ranked for what you can
+                actually ship this month.
+              </p>
+              <Link
+                href="/onboarding"
+                className="mt-5 inline-flex bg-ink px-4 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-800"
+              >
+                Start matching
+              </Link>
+              <ul className="mt-6 space-y-2 text-sm text-muted">
+                <li>Skill floor & starter code</li>
+                <li>Country / student eligibility</li>
+                <li>One-sentence fit reason</li>
+              </ul>
+              <div className="mt-8">
+                <AlertCapture />
+              </div>
+            </div>
+          </aside>
+        </div>
       </div>
     </main>
   );
