@@ -1,7 +1,23 @@
 from functools import lru_cache
 from typing import List
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def normalize_database_url(url: str) -> str:
+    """Normalize Postgres URLs for Supabase / Railway."""
+    if url.startswith("postgres://"):
+        url = "postgresql://" + url[len("postgres://") :]
+
+    if not url.startswith("postgresql"):
+        return url
+
+    parsed = urlparse(url)
+    query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+    # Supabase requires TLS; without this, connections often fail in hosted envs.
+    query.setdefault("sslmode", "require")
+    return urlunparse(parsed._replace(query=urlencode(query)))
 
 
 class Settings(BaseSettings):
@@ -17,12 +33,16 @@ class Settings(BaseSettings):
     ingest_token: str = ""
 
     @property
+    def sqlalchemy_database_url(self) -> str:
+        return normalize_database_url(self.database_url)
+
+    @property
     def cors_origin_list(self) -> List[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
     @property
     def is_sqlite(self) -> bool:
-        return self.database_url.startswith("sqlite")
+        return self.sqlalchemy_database_url.startswith("sqlite")
 
 
 @lru_cache

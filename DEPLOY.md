@@ -40,7 +40,7 @@ This monorepo includes a **root `Dockerfile` + `railway.toml`**, so Railway can 
 
 | Variable | Example | Required |
 | --- | --- | --- |
-| `DATABASE_URL` | Supabase URI from step 1 | Yes |
+| `DATABASE_URL` | Supabase URI from step 1 (**append `?sslmode=require` if missing**) | Yes |
 | `CORS_ORIGINS` | `https://findhackathons.com,https://your-app.vercel.app` | Yes |
 | `INGEST_TOKEN` | long random string | Yes (for worker) |
 | `OPENAI_API_KEY` | `sk-...` | No (heuristic ranking works without it) |
@@ -164,6 +164,14 @@ All four free tiers are enough for early traffic:
 **Ingest rejected**
 - `INGEST_TOKEN` mismatch between Railway and Modal
 - Worker `BACKEND_API_URL` missing `https://`
+
+**Railway healthcheck fails / service unavailable**
+- Open Railway → Deployments → **View Logs** (not just build logs) for the Python traceback
+- Confirm `DATABASE_URL` is set and password is URL-encoded
+- Use a URI like:
+  `postgresql://postgres:PASSWORD@db.PROJECT.supabase.co:5432/postgres?sslmode=require`
+- Prefer Supabase **Direct** connection (port `5432`), not the serverless pooler, for this API
+- After deploy, `/api/health` should return JSON even if DB is degraded
 
 **Railway: `pip: command not found` / Railpack “could not determine how to build”**
 - Pull latest main (root `Dockerfile` + `railway.toml`), clear custom Build Command, redeploy
