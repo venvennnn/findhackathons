@@ -4,16 +4,11 @@
 
 :root {
   --bg: #ffffff;
-  --bg-muted: #f7f8fa;
-  --text: #111827;
-  --text-muted: #6b7280;
-  --text-faint: #9ca3af;
-  --border: #e5e7eb;
-  --link: #2563eb;
-  --link-hover: #1d4ed8;
-  --accent: #6366f1;
-  --accent-hover: #4f46e5;
-  --navy: #0f172a;
+  --text: #171717;
+  --muted: #737373;
+  --faint: #a3a3a3;
+  --line: #ebebeb;
+  --accent: #171717;
   --danger: #dc2626;
   --font-body: "Source Sans 3", "Segoe UI", sans-serif;
 }
@@ -37,7 +32,7 @@ body {
 }
 
 ::selection {
-  background: rgba(99, 102, 241, 0.18);
+  background: rgba(23, 23, 23, 0.12);
 }
 
 a {

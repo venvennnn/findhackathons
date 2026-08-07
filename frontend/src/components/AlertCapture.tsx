@@ -13,7 +13,6 @@ interface AlertCaptureProps {
   country?: string;
   freeText?: string;
   profileId?: string;
-  variant?: "banner" | "panel";
 }
 
 export function AlertCapture({
@@ -22,7 +21,6 @@ export function AlertCapture({
   country = "IN",
   freeText,
   profileId,
-  variant = "panel",
 }: AlertCaptureProps) {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">(
@@ -50,75 +48,35 @@ export function AlertCapture({
     }
   }
 
-  if (variant === "banner") {
-    return (
-      <div className="bg-navy px-4 py-10 text-center text-white md:py-14">
-        <h1 className="mx-auto max-w-3xl text-3xl font-semibold tracking-tight md:text-4xl">
-          Discover hackathons & data science competitions
-        </h1>
-        <p className="mt-4 text-sm text-white/70">
-          Sign up to the mailing list for weekly matches.
-        </p>
-        {status === "done" ? (
-          <p className="mt-6 text-sm text-white/90">{message}</p>
-        ) : (
-          <form
-            onSubmit={onSubmit}
-            className="mx-auto mt-6 flex max-w-md flex-col gap-2 sm:flex-row"
-          >
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email address"
-              className="w-full rounded-md border-0 px-3 py-2.5 text-sm text-ink outline-none"
-            />
-            <button
-              type="submit"
-              disabled={status === "loading"}
-              className="rounded-md bg-accent px-5 py-2.5 text-sm font-semibold text-white hover:bg-accent-hover disabled:opacity-60"
-            >
-              {status === "loading" ? "Saving…" : "Subscribe"}
-            </button>
-          </form>
-        )}
-        {status === "error" && (
-          <p className="mt-3 text-sm text-red-300">{message}</p>
-        )}
-      </div>
-    );
-  }
-
   return (
-    <div className="rounded-lg border border-line bg-soft p-5">
-      <h3 className="text-base font-semibold text-ink">Get weekly matches</h3>
+    <div className="border-t border-line pt-6">
+      <h3 className="text-sm font-medium text-ink">Weekly alerts</h3>
       <p className="mt-1 text-sm text-muted">
-        We’ll email you when finishable competitions open that match your filters.
+        Get an email when something finishable opens.
       </p>
       {status === "done" ? (
-        <p className="mt-4 text-sm text-link">{message}</p>
+        <p className="mt-3 text-sm text-ink">{message}</p>
       ) : (
-        <form onSubmit={onSubmit} className="mt-4 flex flex-col gap-2 sm:flex-row">
+        <form onSubmit={onSubmit} className="mt-3 flex gap-2">
           <input
             type="email"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@college.edu"
-            className="w-full rounded-md border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-accent"
+            placeholder="Email"
+            className="w-full border border-line bg-white px-3 py-2 text-sm outline-none focus:border-ink"
           />
           <button
             type="submit"
             disabled={status === "loading"}
-            className="rounded-md bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:bg-accent-hover disabled:opacity-60"
+            className="shrink-0 bg-ink px-3 py-2 text-sm font-medium text-white disabled:opacity-60"
           >
-            {status === "loading" ? "Saving…" : "Subscribe"}
+            {status === "loading" ? "…" : "Join"}
           </button>
         </form>
       )}
       {status === "error" && (
-        <p className="mt-3 text-sm text-[var(--danger)]">{message}</p>
+        <p className="mt-2 text-sm text-[var(--danger)]">{message}</p>
       )}
     </div>
   );
