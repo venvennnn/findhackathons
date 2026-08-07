@@ -10,16 +10,10 @@ const config: Config = {
     extend: {
       colors: {
         ink: "var(--text)",
-        muted: "var(--text-muted)",
-        faint: "var(--text-faint)",
-        line: "var(--border)",
-        link: "var(--link)",
-        accent: {
-          DEFAULT: "var(--accent)",
-          hover: "var(--accent-hover)",
-        },
-        navy: "var(--navy)",
-        soft: "var(--bg-muted)",
+        muted: "var(--muted)",
+        faint: "var(--faint)",
+        line: "var(--line)",
+        soft: "#fafafa",
       },
       fontFamily: {
         sans: ["var(--font-body)", "sans-serif"],

@@ -67,40 +67,31 @@ function FeedContent() {
   return (
     <main className="min-h-screen bg-white">
       <SiteHeader />
-      <div className="mx-auto max-w-3xl px-4 py-10 md:px-6">
-        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-line pb-4">
+      <div className="mx-auto max-w-2xl px-5 py-10">
+        <div className="flex items-end justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight text-ink">
               Your shortlist
             </h1>
-            <p className="mt-1 text-sm text-muted">
-              Ranked for finishability and fit
-            </p>
+            <p className="mt-1 text-sm text-muted">Ranked for finishability</p>
           </div>
-          <Link href="/onboarding" className="text-sm text-link hover:underline">
-            Refine filters
+          <Link href="/onboarding" className="text-sm text-muted hover:text-ink">
+            Edit
           </Link>
         </div>
 
-        {loading && <p className="mt-8 text-sm text-muted">Ranking competitions…</p>}
-        {error && <p className="mt-8 text-sm text-[var(--danger)]">{error}</p>}
+        {loading && <p className="mt-10 text-sm text-muted">Ranking…</p>}
+        {error && <p className="mt-10 text-sm text-[var(--danger)]">{error}</p>}
 
         {!loading && !error && data && (
           <>
             {data.message && (
               <p className="mt-4 text-sm text-muted">{data.message}</p>
             )}
-            <p className="mt-2 text-xs uppercase tracking-wide text-faint">
-              {data.total_candidates} candidate
-              {data.total_candidates === 1 ? "" : "s"}
-              {data.broadened ? " · broadened" : ""}
-            </p>
-
-            <div className="mt-6">
+            <div className="mt-6 divide-y divide-line border-t border-line">
               {data.matches.length === 0 ? (
-                <p className="text-sm text-muted">
-                  No active competitions survived your filters. Subscribe below for
-                  alerts.
+                <p className="py-8 text-sm text-muted">
+                  No matches yet. Join alerts below.
                 </p>
               ) : (
                 data.matches.map((listing) => (
@@ -108,7 +99,6 @@ function FeedContent() {
                 ))
               )}
             </div>
-
             <div className="mt-8">
               <AlertCapture
                 skillLevel={skillLevel}
