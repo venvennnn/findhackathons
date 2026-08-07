@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Build / runtime
+.next/
+out/
+dist/
+build/
+*.egg-info/
+findhackathons.db
+*.db
+.DS_Store
+
+# Env / secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# IDE / tooling
+.idea/
+.vscode/
+.turbo/
+coverage/
+.modal/
+
+# Logs
+*.log
+npm-debug.log*
