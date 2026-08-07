@@ -1,6 +1,7 @@
 from collections.abc import Generator
 import time
 
+from sqlalchemy.pool import NullPool
 from sqlmodel import Session, SQLModel, create_engine
 
 from app.core.config import get_settings
@@ -8,12 +9,18 @@ from app.core.config import get_settings
 settings = get_settings()
 
 connect_args = {"check_same_thread": False} if settings.is_sqlite else {}
-engine = create_engine(
-    settings.sqlalchemy_database_url,
-    echo=False,
-    pool_pre_ping=True,
-    connect_args=connect_args,
-)
+
+# Supabase transaction pooler (port 6543) is incompatible with server-side cursors /
+# persistent SQLAlchemy pools — use NullPool. Session mode (:5432 on pooler) is fine.
+engine_kwargs: dict = {
+    "echo": False,
+    "pool_pre_ping": True,
+    "connect_args": connect_args,
+}
+if not settings.is_sqlite and ":6543" in settings.sqlalchemy_database_url:
+    engine_kwargs["poolclass"] = NullPool
+
+engine = create_engine(settings.sqlalchemy_database_url, **engine_kwargs)
 
 
 def init_db() -> None:

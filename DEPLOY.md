@@ -16,9 +16,19 @@ You can launch with steps **1–3** only. Modal is optional until you want live 
 
 1. Create a free project at [supabase.com](https://supabase.com).
 2. Open **Project Settings → Database**.
-3. Copy the **URI** connection string, e.g.
-   `postgresql://postgres:PASSWORD@db.<project>.supabase.co:5432/postgres`
-4. Keep this as `DATABASE_URL` for Railway.
+3. Under **Connection string**, choose:
+   - **Method:** URI  
+   - **Type:** **Connection pooling** → **Session mode** (important for Railway)
+4. Copy the pooler URI. It looks like:
+   ```text
+   postgresql://postgres.PROJECT_REF:PASSWORD@aws-0-REGION.pooler.supabase.com:5432/postgres
+   ```
+5. URL-encode the password if needed, and ensure `?sslmode=require` is present:
+   ```text
+   postgresql://postgres.PROJECT_REF:ENCODED_PASSWORD@aws-0-REGION.pooler.supabase.com:5432/postgres?sslmode=require
+   ```
+
+> **Why pooler?** Supabase direct hosts (`db.*.supabase.co`) are often IPv6-only. Railway commonly fails with `Network is unreachable` on IPv6. The **Session pooler** is IPv4-friendly.
 
 Tables are created automatically when the API boots (`SQLModel.create_all`). Demo listings seed if the DB is empty.
 
@@ -40,7 +50,7 @@ This monorepo includes a **root `Dockerfile` + `railway.toml`**, so Railway can 
 
 | Variable | Example | Required |
 | --- | --- | --- |
-| `DATABASE_URL` | Supabase URI from step 1 (**append `?sslmode=require` if missing**) | Yes |
+| `DATABASE_URL` | Supabase **Session pooler** URI (`...pooler.supabase.com:5432/...` + `sslmode=require`) | Yes |
 | `CORS_ORIGINS` | `https://findhackathons.com,https://your-app.vercel.app` | Yes |
 | `INGEST_TOKEN` | long random string | Yes (for worker) |
 | `OPENAI_API_KEY` | `sk-...` | No (heuristic ranking works without it) |
@@ -172,12 +182,16 @@ All four free tiers are enough for early traffic:
 - `INGEST_TOKEN` mismatch between Railway and Modal
 - Worker `BACKEND_API_URL` missing `https://`
 
+**Railway healthcheck fails / `database_error` Network is unreachable (IPv6)**
+- You’re using the direct host `db.*.supabase.co` — switch to Supabase **Connection pooling → Session mode**
+- `DATABASE_URL` should look like:
+  `postgresql://postgres.PROJECT_REF:PASSWORD@aws-0-REGION.pooler.supabase.com:5432/postgres?sslmode=require`
+- Note the username is often `postgres.PROJECT_REF` (not just `postgres`)
+- URL-encode the password, redeploy Railway, then recheck `/api/health`
+
 **Railway healthcheck fails / service unavailable**
 - Open Railway → Deployments → **View Logs** (not just build logs) for the Python traceback
 - Confirm `DATABASE_URL` is set and password is URL-encoded
-- Use a URI like:
-  `postgresql://postgres:PASSWORD@db.PROJECT.supabase.co:5432/postgres?sslmode=require`
-- Prefer Supabase **Direct** connection (port `5432`), not the serverless pooler, for this API
 - After deploy, `/api/health` should return JSON even if DB is degraded
 
 **Railway: `pip: command not found` / Railpack “could not determine how to build”**
