@@ -1,0 +1,5 @@
+{
+  "snapshot": "DEFAULT",
+  "install": "sudo apt-get update -qq && sudo apt-get install -y -qq python3.12-venv >/dev/null\ncd backend && python3 -m venv .venv && . .venv/bin/activate && pip install -r requirements.txt\ncd ../frontend && npm install",
+  "start": "cd backend && . .venv/bin/activate && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+}

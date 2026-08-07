@@ -1,0 +1,1 @@
+"""FindHackathons backend application package."""

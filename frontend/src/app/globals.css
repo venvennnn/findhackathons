@@ -1,0 +1,121 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --ink: #07131f;
+  --ink-soft: #0e2436;
+  --foam: #e8f4f2;
+  --mist: #b7d4cf;
+  --teal: #1aa6a0;
+  --teal-bright: #2fd4c8;
+  --amber: #e8a317;
+  --amber-soft: #f3c66a;
+  --danger: #d4543a;
+  --line: rgba(232, 244, 242, 0.12);
+  --shadow: 0 30px 80px rgba(2, 10, 18, 0.45);
+  --font-display: "Syne", sans-serif;
+  --font-body: "DM Sans", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--foam);
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(26, 166, 160, 0.28), transparent 55%),
+    radial-gradient(900px 500px at 90% 0%, rgba(232, 163, 23, 0.16), transparent 50%),
+    linear-gradient(165deg, #061019 0%, #0a1c2c 48%, #082029 100%);
+  font-family: var(--font-body);
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: rgba(47, 212, 200, 0.35);
+  color: #fff;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.display {
+  font-family: var(--font-display);
+  letter-spacing: -0.03em;
+}
+
+.grain {
+  position: relative;
+  isolation: isolate;
+}
+
+.grain::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 0.08;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.hero-glow {
+  animation: drift 14s ease-in-out infinite alternate;
+}
+
+.fade-up {
+  animation: fadeUp 0.8s ease both;
+}
+
+.fade-up-delay {
+  animation: fadeUp 0.9s ease both;
+  animation-delay: 0.12s;
+}
+
+.fade-up-delay-2 {
+  animation: fadeUp 1s ease both;
+  animation-delay: 0.24s;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes drift {
+  from {
+    transform: translate3d(-2%, -1%, 0) scale(1);
+  }
+  to {
+    transform: translate3d(3%, 2%, 0) scale(1.05);
+  }
+}
+
+@keyframes pulseLine {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+.pulse-line {
+  animation: pulseLine 3.2s ease-in-out infinite;
+}
