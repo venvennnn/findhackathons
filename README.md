@@ -82,12 +82,17 @@ modal run modal_app.py      # one-shot
 2. **Probabilistic rank:** shortlist ≤40 candidates; OpenAI ranks top 5 with a one-sentence fit reason when `OPENAI_API_KEY` is set; otherwise a heuristic ranker is used.
 3. **Empty / sparse state:** if &lt;3 exact matches, broaden domains, label expanded results, and prompt for weekly alerts.
 
-## Deploy sequence (production)
+## Deploy (production)
 
-1. **Supabase** — create Postgres; set `DATABASE_URL` on Railway.
-2. **Railway** — deploy `backend/`; set `OPENAI_API_KEY`, `INGEST_TOKEN`, `CORS_ORIGINS`.
-3. **Modal** — create secret `findhackathons-secrets` with `OPENAI_API_KEY`, `BACKEND_API_URL`, `INGEST_TOKEN` (and optional Kaggle keys); `modal deploy worker/modal_app.py`.
-4. **Vercel** — deploy `frontend/`; set `NEXT_PUBLIC_API_URL` to the Railway URL; attach `findhackathons.com`.
+Step-by-step hosting guide: **[DEPLOY.md](./DEPLOY.md)**
+
+Quick path:
+
+1. **Supabase** — create Postgres; copy `DATABASE_URL`.
+2. **Railway** — deploy `backend/` (see `backend/railway.toml`); set `DATABASE_URL`, `CORS_ORIGINS`, `INGEST_TOKEN`.
+3. **Vercel** — deploy `frontend/` (see `frontend/vercel.json`); set `NEXT_PUBLIC_API_URL` to the Railway URL.
+4. **Modal** (optional) — `modal deploy worker/modal_app.py` for live scraping every 6 hours.
+5. Attach custom DNS for `findhackathons.com` in Vercel.
 
 ## Tests
 
