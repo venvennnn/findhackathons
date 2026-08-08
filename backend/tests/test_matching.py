@@ -50,7 +50,25 @@ def _client_with_db():
                 skill_floor_reasoning="No starter code.",
                 students_only=False,
                 country_restrictions=[],
+                prize_pool_usd=25000,
                 has_starter_code=False,
+                confidence=ConfidenceLevel.high,
+            )
+        )
+        session.add(
+            Listing(
+                title="Kaggle Knowledge Playground",
+                organizer="Kaggle",
+                url="https://example.com/kaggle-knowledge",
+                source=SourcePlatform.kaggle,
+                deadline_utc=datetime.now(timezone.utc) + timedelta(days=50),
+                domains=["tabular"],
+                skill_floor=SkillLevel.beginner,
+                skill_floor_reasoning="Playground with notebooks.",
+                students_only=False,
+                country_restrictions=[],
+                prize_pool_usd=None,
+                has_starter_code=True,
                 confidence=ConfidenceLevel.high,
             )
         )
@@ -94,6 +112,25 @@ def test_match_beginner_india():
     assert body["total_candidates"] >= 1
     assert body["matches"][0]["title"] == "Beginner Python Sprint"
     assert "starter" in body["matches"][0]["fit_reason"].lower() or "beginner" in body["matches"][0]["fit_reason"].lower()
+
+
+def test_listings_default_prize_only():
+    client = _client_with_db()
+    response = client.get("/api/listings", params={"limit": 20})
+    assert response.status_code == 200
+    titles = {row["title"] for row in response.json()}
+    assert "Beginner Python Sprint" in titles
+    assert "Advanced CV Challenge" in titles
+    assert "Kaggle Knowledge Playground" not in titles
+
+
+def test_listings_include_no_prize():
+    client = _client_with_db()
+    response = client.get("/api/listings", params={"limit": 20, "has_prize": "false"})
+    assert response.status_code == 200
+    titles = {row["title"] for row in response.json()}
+    assert "Kaggle Knowledge Playground" in titles
+    assert "Beginner Python Sprint" in titles
 
 
 def test_profile_and_alerts():

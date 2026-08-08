@@ -73,6 +73,11 @@ def list_listings(
     source: Optional[SourcePlatform] = None,
     country: Optional[str] = None,
     has_starter_code: Optional[bool] = None,
+    has_prize: Optional[bool] = Query(
+        default=True,
+        description="Default true: only cash-prize listings. "
+        "Pass false to include Knowledge / no-prize competitions as well.",
+    ),
     active_only: bool = True,
     limit: int = Query(default=20, ge=1, le=100),
     session: Session = Depends(get_session),
@@ -90,8 +95,21 @@ def list_listings(
         statement = statement.where(Listing.source == source)
     if has_starter_code is not None:
         statement = statement.where(Listing.has_starter_code == has_starter_code)
+    # Default feed is prize-first. has_prize=false means "include no-prize too".
+    if has_prize is not False:
+        statement = statement.where(
+            Listing.prize_pool_usd != None,  # noqa: E711
+            Listing.prize_pool_usd > 0,
+        )
 
-    listings = list(session.exec(statement.order_by(Listing.deadline_utc).limit(limit * 3)).all())
+    listings = list(session.exec(statement.limit(limit * 5)).all())
+    # Prize comps first (portable across SQLite + Postgres), then soonest deadline.
+    listings.sort(
+        key=lambda item: (
+            -(item.prize_pool_usd or 0),
+            item.deadline_utc or datetime.max.replace(tzinfo=timezone.utc),
+        )
+    )
 
     results: List[ListingRead] = []
     for listing in listings:

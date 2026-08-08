@@ -46,8 +46,10 @@ export default function HomePage() {
   const [query, setQuery] = useState("");
   const [level, setLevel] = useState<SkillLevel | "all">("all");
   const [domains, setDomains] = useState<Set<DomainCategory>>(new Set());
-  const [flags, setFlags] = useState<Set<"starter" | "india">>(new Set());
-  const [sort, setSort] = useState<SortKey>("finish");
+  const [flags, setFlags] = useState<Set<"starter" | "india" | "noPrize">>(
+    new Set(),
+  );
+  const [sort, setSort] = useState<SortKey>("prize");
 
   const [matchText, setMatchText] = useState("");
   const [matching, setMatching] = useState(false);
@@ -60,13 +62,19 @@ export default function HomePage() {
   const [matchSkill, setMatchSkill] = useState<SkillLevel>("beginner");
   const [matchDomains, setMatchDomains] = useState<DomainCategory[]>([]);
 
+  const includeNoPrize = flags.has("noPrize");
+
   useEffect(() => {
     let cancelled = false;
     async function load() {
       setLoading(true);
       setError("");
       try {
-        const data = await getListings({ limit: "40" });
+        // Default: cash-prize comps only. Toggle "Include no-prize" to widen.
+        const data = await getListings({
+          limit: "60",
+          has_prize: includeNoPrize ? "false" : "true",
+        });
         if (!cancelled) setListings(data);
       } catch (err) {
         if (!cancelled) {
@@ -80,7 +88,7 @@ export default function HomePage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [includeNoPrize]);
 
   const enriched: EnrichedListing[] = useMemo(() => {
     return listings.map((listing, index) => {
@@ -138,7 +146,12 @@ export default function HomePage() {
   }, [filtered, sort, matchOn]);
 
   const activeFilters =
-    query || level !== "all" || domains.size > 0 || flags.size > 0;
+    query ||
+    level !== "all" ||
+    domains.size > 0 ||
+    flags.has("starter") ||
+    flags.has("india") ||
+    flags.has("noPrize");
 
   function toggleDomain(domain: DomainCategory) {
     setDomains((current) => {
@@ -149,7 +162,7 @@ export default function HomePage() {
     });
   }
 
-  function toggleFlag(flag: "starter" | "india") {
+  function toggleFlag(flag: "starter" | "india" | "noPrize") {
     setFlags((current) => {
       const next = new Set(current);
       if (next.has(flag)) next.delete(flag);
@@ -420,6 +433,14 @@ export default function HomePage() {
               <button
                 type="button"
                 className="chip flag"
+                aria-pressed={flags.has("noPrize")}
+                onClick={() => toggleFlag("noPrize")}
+              >
+                Include no-prize
+              </button>
+              <button
+                type="button"
+                className="chip flag"
                 aria-pressed={flags.has("starter")}
                 onClick={() => toggleFlag("starter")}
               >
@@ -450,7 +471,8 @@ export default function HomePage() {
               </>
             ) : (
               <>
-                <b>{sorted.length}</b> open ·{" "}
+                <b>{sorted.length}</b>{" "}
+                {includeNoPrize ? "open" : "with prizes"} ·{" "}
                 <b>{sorted.filter((item) => (item.daysLeft ?? 99) <= 7).length}</b>{" "}
                 close this week
               </>

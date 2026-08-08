@@ -25,6 +25,7 @@ image = (
         "sqlalchemy>=2.0.0",
         "psycopg2-binary>=2.9.10",
         "python-dotenv>=1.0.1",
+        "kaggle>=1.6.17",
     )
     .run_commands("playwright install chromium --with-deps")
 )
@@ -34,7 +35,7 @@ app = modal.App("findhackathons-ingestion", image=image)
 secrets = modal.Secret.from_name("findhackathons-secrets")
 
 
-def _run_pipeline(limit_per_source: int = 20) -> Dict[str, int]:
+def _run_pipeline(limit_per_source: int = 20, kaggle_limit: int = 200) -> Dict[str, int]:
     # Local imports so Modal serializes cleanly
     import sys
     from pathlib import Path
@@ -47,11 +48,14 @@ def _run_pipeline(limit_per_source: int = 20) -> Dict[str, int]:
     from db_writer import deactivate_stale, upsert_listing
     from scrapers.devfolio import fetch_devfolio
     from scrapers.devpost import fetch_devpost
-    from scrapers.kaggle import fetch_kaggle
+    from scrapers.kaggle import fetch_kaggle, iter_prize_stats
     from scrapers.unstop import fetch_unstop
 
+    kaggle_rows = fetch_kaggle(limit=kaggle_limit)
+    print(f"[pipeline] kaggle stats: {iter_prize_stats(kaggle_rows)}")
+
     raw_batches = [
-        ("kaggle", fetch_kaggle(limit=limit_per_source)),
+        ("kaggle", kaggle_rows),
         ("devpost", fetch_devpost(limit=limit_per_source)),
         ("devfolio", fetch_devfolio(limit=limit_per_source)),
         ("unstop", fetch_unstop(limit=limit_per_source)),
@@ -61,24 +65,40 @@ def _run_pipeline(limit_per_source: int = 20) -> Dict[str, int]:
     try:
         from scrapers.unstop import fetch_unstop_playwright
 
-        unstop_pw = asyncio.get_event_loop().run_until_complete(
-            fetch_unstop_playwright(limit=limit_per_source)
-        )
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                raise RuntimeError("loop running")
+            unstop_pw = loop.run_until_complete(fetch_unstop_playwright(limit=limit_per_source))
+        except RuntimeError:
+            unstop_pw = asyncio.run(fetch_unstop_playwright(limit=limit_per_source))
         if unstop_pw:
             raw_batches = [b for b in raw_batches if b[0] != "unstop"] + [("unstop", unstop_pw)]
     except Exception as exc:  # noqa: BLE001
         print(f"[pipeline] playwright unstop skipped: {exc}")
 
-    stats = {"fetched": 0, "enriched": 0, "created": 0, "updated": 0, "unchanged": 0, "failed": 0}
+    stats = {
+        "fetched": 0,
+        "enriched": 0,
+        "created": 0,
+        "updated": 0,
+        "unchanged": 0,
+        "failed": 0,
+        "kaggle_structured": 0,
+    }
 
     for source, rows in raw_batches:
         for row in rows:
             stats["fetched"] += 1
             digest = content_hash(row.raw_text)
+            structured = getattr(row, "structured", None)
+            if structured:
+                stats["kaggle_structured"] += 1
             enriched = enrich_or_none(
                 row.raw_text,
                 source_url=row.url,
                 organizer_hint=row.organizer,
+                structured=structured,
             )
             if not enriched:
                 stats["failed"] += 1
@@ -111,7 +131,47 @@ def ingest_cron():
     return _run_pipeline()
 
 
+@app.function(secrets=[secrets], timeout=60 * 30, memory=2048)
+def ingest_kaggle_only():
+    """One-shot Kaggle sync for manual runs: modal run worker/modal_app.py::ingest_kaggle_only"""
+    import sys
+    from pathlib import Path
+
+    worker_dir = Path(__file__).resolve().parent
+    if str(worker_dir) not in sys.path:
+        sys.path.insert(0, str(worker_dir))
+
+    from enrichment import content_hash, enrich_or_none
+    from db_writer import upsert_listing
+    from scrapers.kaggle import fetch_kaggle, iter_prize_stats
+
+    rows = fetch_kaggle(limit=250)
+    print(f"[kaggle-only] stats: {iter_prize_stats(rows)}")
+    stats = {"fetched": 0, "enriched": 0, "created": 0, "updated": 0, "unchanged": 0, "failed": 0}
+    for row in rows:
+        stats["fetched"] += 1
+        enriched = enrich_or_none(
+            row.raw_text,
+            source_url=row.url,
+            organizer_hint=row.organizer,
+            structured=row.structured,
+        )
+        if not enriched:
+            stats["failed"] += 1
+            continue
+        stats["enriched"] += 1
+        status = upsert_listing(
+            enriched=enriched,
+            source="kaggle",
+            content_hash=content_hash(row.raw_text),
+            raw_snippet=row.raw_text,
+        )
+        stats[status] = stats.get(status, 0) + 1
+    print(f"[kaggle-only] done: {stats}")
+    return stats
+
+
 @app.local_entrypoint()
 def main():
     """Run once locally/remotely: modal run worker/modal_app.py"""
-    print(_run_pipeline(limit_per_source=5))
+    print(_run_pipeline(limit_per_source=5, kaggle_limit=50))
