@@ -9,14 +9,14 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: "var(--text)",
-        muted: "var(--muted)",
-        faint: "var(--faint)",
-        line: "var(--line)",
-        soft: "#fafafa",
+        ink: "var(--ink)",
+        paper: "var(--paper)",
+        violet: "var(--violet)",
       },
       fontFamily: {
-        sans: ["var(--font-body)", "sans-serif"],
+        display: ["var(--font-display)", "sans-serif"],
+        body: ["var(--font-body)", "sans-serif"],
+        mono: ["var(--font-mono)", "monospace"],
       },
     },
   },

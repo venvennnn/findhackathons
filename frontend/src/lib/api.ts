@@ -87,7 +87,6 @@ function friendlyError(status: number, text: string): string {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  // Same-origin /api/* is proxied by Next.js to Railway (BACKEND_URL).
   const response = await fetch(path, {
     ...init,
     headers: {
@@ -141,12 +140,71 @@ export function getListings(params?: Record<string, string>) {
 
 export const DOMAIN_OPTIONS: { value: DomainCategory; label: string }[] = [
   { value: "web-dev", label: "Web Dev" },
-  { value: "mobile", label: "Mobile" },
+  { value: "tabular", label: "Tabular ML" },
   { value: "nlp", label: "NLP" },
   { value: "cv", label: "Computer Vision" },
-  { value: "tabular", label: "Tabular / Classic ML" },
-  { value: "web3", label: "Web3" },
+  { value: "mobile", label: "Mobile" },
   { value: "hardware", label: "Hardware" },
   { value: "game-dev", label: "Game Dev" },
+  { value: "web3", label: "Web3" },
   { value: "other", label: "Other" },
 ];
+
+export const MATCH_EXAMPLES = [
+  {
+    label: "a student exploring DS",
+    text: "I'm a second-year CS student just getting into data science. I've done a Python course and one Kaggle tutorial, nothing real yet. I've got one free weekend and I mostly want to finish something and understand what I did.",
+  },
+  {
+    label: "a credit risk DS moving into NLP",
+    text: "Credit risk data scientist, six years in banking. Very comfortable with tabular modelling, gradient boosting, calibration. I want to move sideways into NLP and I can give it a few weeks of evenings.",
+  },
+  {
+    label: "a frontend dev building a portfolio",
+    text: "Final-year student in Chennai, I build React apps and want something for my portfolio that recruiters would actually recognise. One weekend, working solo, no budget.",
+  },
+];
+
+/** Lightweight client-side read of free text for filters + match payload. */
+export function inferProfile(text: string): {
+  skill_level: SkillLevel;
+  domains: DomainCategory[];
+  prefer_starter_code: boolean;
+} {
+  const t = ` ${text.toLowerCase()} `;
+  let skill_level: SkillLevel = "intermediate";
+  if (
+    /(never|first|just start|getting into|exploring|beginner|tutorial|new to|student)/.test(
+      t,
+    )
+  ) {
+    skill_level = "beginner";
+  }
+  if (
+    /(years|senior|professional|scientist|production|phd|competitive)/.test(t)
+  ) {
+    skill_level = "advanced";
+  }
+
+  const domains: DomainCategory[] = [];
+  const hints: [DomainCategory, RegExp][] = [
+    ["tabular", /(credit|risk|tabular|xgboost|boosting|forecast|kaggle|churn)/],
+    ["nlp", /(nlp|llm|language|text|agent|chatbot|rag|speech|voice)/],
+    ["cv", /(vision|image|\bcv\b|segmentation|opencv|satellite)/],
+    ["web-dev", /(web|frontend|react|next|javascript|fullstack|api|backend)/],
+    ["mobile", /(mobile|android|ios|flutter)/],
+    ["hardware", /(hardware|iot|embedded|arduino|raspberry)/],
+    ["game-dev", /(game|godot|unity|gamedev)/],
+    ["web3", /(web3|solidity|crypto|blockchain)/],
+  ];
+  for (const [domain, re] of hints) {
+    if (re.test(t)) domains.push(domain);
+  }
+  if (!domains.length) domains.push("web-dev", "tabular");
+
+  return {
+    skill_level,
+    domains,
+    prefer_starter_code: skill_level === "beginner" || /starter|beginner/.test(t),
+  };
+}
