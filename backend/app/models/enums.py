@@ -30,6 +30,7 @@ class SourcePlatform(str, Enum):
     devpost = "devpost"
     devfolio = "devfolio"
     unstop = "unstop"
+    manual = "manual"
     other = "other"
 
 

@@ -157,12 +157,38 @@ export function expressListingInterest(
     ok: boolean;
     message: string;
     listing_id: string;
+    listing_title: string;
     interest_count: number;
     count_is_public: boolean;
+    discord_url: string;
   }>(`/api/listings/${listingId}/interest`, {
     method: "POST",
     body: JSON.stringify(payload),
   });
+}
+
+export function submitCompetition(payload: {
+  title: string;
+  url: string;
+  organizer?: string;
+  deadline_utc?: string;
+  prize_pool_usd?: number;
+  domains?: DomainCategory[];
+  skill_floor?: SkillLevel;
+  has_starter_code?: boolean;
+  students_only?: boolean;
+  requires_travel?: boolean;
+  team_size_max?: number;
+  notes?: string;
+  submitter_email?: string;
+}) {
+  return request<{ ok: boolean; message: string; id: string; status: string }>(
+    "/api/listings/submit",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
 }
 
 export function getListings(params?: Record<string, string>) {

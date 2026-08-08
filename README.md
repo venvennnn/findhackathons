@@ -71,23 +71,23 @@ modal run modal_app.py      # one-shot
 | --- | --- | --- |
 | `GET` | `/api/health` | Health + listing count |
 | `GET` | `/api/listings` | Deterministic filtered inventory |
-| `POST` | `/api/listings/{id}/interest` | Phase 0: private teammate interest signal |
+| `POST` | `/api/listings/{id}/interest` | Email + competition → Discord teammate channel |
+| `POST` | `/api/listings/submit` | Manual add / correct a competition |
 | `POST` | `/api/profiles` | Create preference profile |
 | `POST` | `/api/match` | Hybrid SQL filter + LLM/heuristic rank (top 5) |
 | `POST` | `/api/alerts/subscribe` | Email alert capture (+ optional looking-for-team) |
 | `POST` | `/api/internal/ingest` | Worker upsert (token-gated) |
-| `GET` | `/api/internal/demand` | Phase 0 teammate demand dashboard (token-gated) |
+| `GET` | `/api/internal/demand` | Teammate demand dashboard (token-gated) |
 
-### Teammate finding (Phase 0)
+### Teammates (simple)
 
-No public teammate marketplace yet (auth + empty-state risk). Phase 0 only:
+Collect email + which competition, then send people to the shared Discord channel
+to introduce themselves. No in-app chat or contact relay.
 
-- capture `looking_for_team` / `team_needs` on alerts + per-listing interest
-- show ambient counts only after a listing hits the threshold (default 8)
-- link out to the event’s own team channel when known
-- measure demand via `GET /api/internal/demand`
+### Manual submissions
 
-Phase 1 (public profiles + relayed contact) ships only if the Phase 0 gate passes.
+Anyone can add or correct a listing via **Missing a competition?** on the site
+(`POST /api/listings/submit`, `source=manual`). Same URL updates an existing row.
 
 ## Matching flow
 
