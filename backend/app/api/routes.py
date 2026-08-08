@@ -7,7 +7,13 @@ from sqlmodel import Session, col, select
 from app.core.config import get_settings
 from app.core.database import engine, get_session
 from app.models.db import AlertSubscription, Listing, UserProfile, utcnow
-from app.models.enums import DomainCategory, SkillLevel, SourcePlatform, TeamRole
+from app.models.enums import (
+    ConfidenceLevel,
+    DomainCategory,
+    SkillLevel,
+    SourcePlatform,
+    TeamRole,
+)
 from app.models.schemas import (
     AlertSubscribe,
     AlertSubscribeResponse,
@@ -17,12 +23,14 @@ from app.models.schemas import (
     ListingInterestCreate,
     ListingInterestResponse,
     ListingRead,
+    ManualListingSubmit,
+    ManualListingSubmitResponse,
     MatchRequest,
     MatchResponse,
     ProfileCreate,
     ProfileRead,
 )
-from app.services.matching import listing_to_read, match_hackathons
+from app.services.matching import discord_team_url, listing_to_read, match_hackathons
 from app.services.teammates import (
     build_demand_dashboard,
     interest_counts_by_listing,
@@ -163,6 +171,86 @@ def list_listings(
     return results
 
 
+@router.post("/listings/submit", response_model=ManualListingSubmitResponse)
+def submit_listing(
+    payload: ManualListingSubmit,
+    session: Session = Depends(get_session),
+) -> ManualListingSubmitResponse:
+    """Public manual add/correct a competition (source=manual)."""
+    url = payload.url.strip()
+    existing = session.exec(select(Listing).where(Listing.url == url)).first()
+    now = utcnow()
+    domains = [d.value for d in payload.domains] or ["other"]
+    organizer = (payload.organizer or "").strip() or "Community submission"
+    snippet_bits = [
+        f"Manual submission at {now.isoformat()}",
+        f"Notes: {payload.notes}" if payload.notes else "",
+        f"Submitter: {payload.submitter_email}" if payload.submitter_email else "",
+    ]
+    raw_snippet = " | ".join(bit for bit in snippet_bits if bit)
+
+    if existing:
+        existing.title = payload.title
+        existing.organizer = organizer
+        existing.source = SourcePlatform.manual
+        existing.deadline_utc = payload.deadline_utc
+        existing.domains = domains
+        existing.skill_floor = payload.skill_floor
+        existing.skill_floor_reasoning = (
+            existing.skill_floor_reasoning
+            or "Manually submitted / corrected via the website."
+        )
+        existing.students_only = payload.students_only
+        existing.team_size_max = payload.team_size_max
+        existing.requires_travel = payload.requires_travel
+        existing.prize_pool_usd = payload.prize_pool_usd
+        existing.has_starter_code = payload.has_starter_code
+        existing.confidence = ConfidenceLevel.medium
+        existing.raw_snippet = raw_snippet
+        existing.team_channel_url = existing.team_channel_url or discord_team_url()
+        existing.is_active = True
+        existing.updated_at = now
+        existing.last_seen_at = now
+        session.add(existing)
+        session.commit()
+        return ManualListingSubmitResponse(
+            ok=True,
+            message="Updated that competition — thanks for the correction.",
+            id=existing.id,
+            status="updated",
+        )
+
+    listing = Listing(
+        title=payload.title,
+        organizer=organizer,
+        url=url,
+        source=SourcePlatform.manual,
+        deadline_utc=payload.deadline_utc,
+        domains=domains,
+        skill_floor=payload.skill_floor,
+        skill_floor_reasoning="Manually submitted via the website.",
+        students_only=payload.students_only,
+        country_restrictions=[],
+        team_size_max=payload.team_size_max,
+        requires_travel=payload.requires_travel,
+        prize_pool_usd=payload.prize_pool_usd,
+        has_starter_code=payload.has_starter_code,
+        confidence=ConfidenceLevel.medium,
+        raw_snippet=raw_snippet,
+        team_channel_url=discord_team_url(),
+        is_active=True,
+    )
+    session.add(listing)
+    session.commit()
+    session.refresh(listing)
+    return ManualListingSubmitResponse(
+        ok=True,
+        message="Added — it should show up in the feed shortly.",
+        id=listing.id,
+        status="created",
+    )
+
+
 @router.get("/listings/{listing_id}", response_model=ListingRead)
 def get_listing(listing_id: str, session: Session = Depends(get_session)) -> ListingRead:
     listing = session.get(Listing, listing_id)
@@ -177,16 +265,14 @@ def express_listing_interest(
     payload: ListingInterestCreate,
     session: Session = Depends(get_session),
 ) -> ListingInterestResponse:
-    """Phase 0: record that someone is looking for teammates on this listing.
-
-    Captures email + optional roles. Does not publish any identity.
-    """
+    """Record email + competition interest, then send people to Discord."""
     listing = session.get(Listing, listing_id)
     if not listing or not listing.is_active:
         raise HTTPException(status_code=404, detail="Listing not found")
 
     email = str(payload.email).strip().lower()
     needs = _role_values(payload.team_needs)
+    discord = discord_team_url()
 
     profile: Optional[UserProfile] = None
     if payload.profile_id:
@@ -232,12 +318,14 @@ def express_listing_interest(
     return ListingInterestResponse(
         ok=True,
         message=(
-            "Got it — we've noted you're looking for teammates on this one. "
-            "We won't show your name or email publicly."
+            f"Saved — you're looking for teammates on “{listing.title}”. "
+            "Jump into Discord, introduce yourself, and mention the competition."
         ),
         listing_id=listing.id,
+        listing_title=listing.title,
         interest_count=raw,
         count_is_public=public is not None,
+        discord_url=discord,
     )
 
 
@@ -481,7 +569,10 @@ def subscribe_alerts(
 
     message = "You're on the weekly alert list. We'll email matches as they open."
     if payload.looking_for_team:
-        message += " We also noted you're looking for teammates (kept private for now)."
+        message += (
+            " Looking for teammates? Join Discord, introduce yourself, "
+            f"and name the competition: {discord_team_url()}"
+        )
 
     return AlertSubscribeResponse(
         ok=True,

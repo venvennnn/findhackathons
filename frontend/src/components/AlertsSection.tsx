@@ -1,13 +1,10 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import {
-  DomainCategory,
-  SkillLevel,
-  TEAM_ROLE_OPTIONS,
-  TeamRole,
-  subscribeAlerts,
-} from "@/lib/api";
+import { DomainCategory, SkillLevel, subscribeAlerts } from "@/lib/api";
+
+const DISCORD_URL =
+  "https://discord.com/channels/1535536397463724062/1535536398093000708";
 
 export function AlertsSection({
   skillLevel = "beginner",
@@ -18,20 +15,10 @@ export function AlertsSection({
 }) {
   const [email, setEmail] = useState("");
   const [lookingForTeam, setLookingForTeam] = useState(false);
-  const [needs, setNeeds] = useState<Set<TeamRole>>(new Set());
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">(
     "idle",
   );
   const [message, setMessage] = useState("");
-
-  function toggleNeed(role: TeamRole) {
-    setNeeds((current) => {
-      const next = new Set(current);
-      if (next.has(role)) next.delete(role);
-      else next.add(role);
-      return next;
-    });
-  }
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -43,7 +30,6 @@ export function AlertsSection({
         domains,
         country: "IN",
         looking_for_team: lookingForTeam,
-        team_needs: lookingForTeam ? Array.from(needs) : [],
       });
       setMessage(result.message);
       setStatus("done");
@@ -65,9 +51,23 @@ export function AlertsSection({
         </div>
         <div>
           {status === "done" ? (
-            <p className="fineprint" style={{ color: "var(--moss)" }}>
-              {message}
-            </p>
+            <div>
+              <p className="fineprint" style={{ color: "var(--moss)" }}>
+                {message}
+              </p>
+              {lookingForTeam && (
+                <p className="fineprint" style={{ marginTop: 10 }}>
+                  <a
+                    className="teammate-link"
+                    href={DISCORD_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Open Discord → find teammates
+                  </a>
+                </p>
+              )}
+            </div>
           ) : (
             <form className="form" onSubmit={onSubmit}>
               <input
@@ -87,23 +87,11 @@ export function AlertsSection({
                   checked={lookingForTeam}
                   onChange={(e) => setLookingForTeam(e.target.checked)}
                 />
-                <span>I&apos;m also looking for teammates</span>
+                <span>
+                  I&apos;m looking for teammates (we&apos;ll point you to
+                  Discord)
+                </span>
               </label>
-              {lookingForTeam && (
-                <div className="team-needs" role="group" aria-label="Roles wanted">
-                  {TEAM_ROLE_OPTIONS.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      className="chip"
-                      aria-pressed={needs.has(option.value)}
-                      onClick={() => toggleNeed(option.value)}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              )}
             </form>
           )}
           {status === "error" ? (
@@ -111,9 +99,7 @@ export function AlertsSection({
               {message}
             </p>
           ) : (
-            <p className="fineprint">
-              No spam · teammate intent stays private · unsubscribe in one click
-            </p>
+            <p className="fineprint">No spam · unsubscribe in one click</p>
           )}
         </div>
       </div>
