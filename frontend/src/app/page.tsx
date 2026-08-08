@@ -259,6 +259,9 @@ export default function HomePage() {
             find<span>hackathons</span>
           </Link>
           <nav className="topnav">
+            <a className="tlink" href="#submit">
+              Add a competition
+            </a>
             <a className="tlink" href="#alerts">
               Weekly alerts
             </a>
