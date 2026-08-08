@@ -1,16 +1,20 @@
-from app.models.db import AlertSubscription, Listing, UserProfile
+from app.models.db import AlertSubscription, Listing, ListingInterest, UserProfile
 from app.models.enums import (
     ConfidenceLevel,
     DomainCategory,
     SkillLevel,
     SourcePlatform,
+    TeamRole,
 )
 from app.models.schemas import (
     AlertSubscribe,
     AlertSubscribeResponse,
+    DemandDashboard,
     Eligibility,
     HackathonListingEnrichment,
     HealthResponse,
+    ListingInterestCreate,
+    ListingInterestResponse,
     ListingRead,
     MatchRequest,
     MatchResponse,
@@ -23,11 +27,15 @@ __all__ = [
     "AlertSubscribe",
     "AlertSubscribeResponse",
     "ConfidenceLevel",
+    "DemandDashboard",
     "DomainCategory",
     "Eligibility",
     "HackathonListingEnrichment",
     "HealthResponse",
     "Listing",
+    "ListingInterest",
+    "ListingInterestCreate",
+    "ListingInterestResponse",
     "ListingRead",
     "MatchRequest",
     "MatchResponse",
@@ -35,5 +43,6 @@ __all__ = [
     "ProfileRead",
     "SkillLevel",
     "SourcePlatform",
+    "TeamRole",
     "UserProfile",
 ]

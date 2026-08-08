@@ -71,10 +71,23 @@ modal run modal_app.py      # one-shot
 | --- | --- | --- |
 | `GET` | `/api/health` | Health + listing count |
 | `GET` | `/api/listings` | Deterministic filtered inventory |
+| `POST` | `/api/listings/{id}/interest` | Phase 0: private teammate interest signal |
 | `POST` | `/api/profiles` | Create preference profile |
 | `POST` | `/api/match` | Hybrid SQL filter + LLM/heuristic rank (top 5) |
-| `POST` | `/api/alerts/subscribe` | Email alert capture |
+| `POST` | `/api/alerts/subscribe` | Email alert capture (+ optional looking-for-team) |
 | `POST` | `/api/internal/ingest` | Worker upsert (token-gated) |
+| `GET` | `/api/internal/demand` | Phase 0 teammate demand dashboard (token-gated) |
+
+### Teammate finding (Phase 0)
+
+No public teammate marketplace yet (auth + empty-state risk). Phase 0 only:
+
+- capture `looking_for_team` / `team_needs` on alerts + per-listing interest
+- show ambient counts only after a listing hits the threshold (default 8)
+- link out to the event’s own team channel when known
+- measure demand via `GET /api/internal/demand`
+
+Phase 1 (public profiles + relayed contact) ships only if the Phase 0 gate passes.
 
 ## Matching flow
 

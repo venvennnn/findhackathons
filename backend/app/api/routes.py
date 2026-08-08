@@ -7,13 +7,15 @@ from sqlmodel import Session, col, select
 from app.core.config import get_settings
 from app.core.database import engine, get_session
 from app.models.db import AlertSubscription, Listing, UserProfile, utcnow
-from app.models.enums import DomainCategory, SkillLevel, SourcePlatform
+from app.models.enums import DomainCategory, SkillLevel, SourcePlatform, TeamRole
 from app.models.schemas import (
     AlertSubscribe,
     AlertSubscribeResponse,
-    HealthResponse,
+    DemandDashboard,
     IngestListing,
     IngestResponse,
+    ListingInterestCreate,
+    ListingInterestResponse,
     ListingRead,
     MatchRequest,
     MatchResponse,
@@ -21,8 +23,24 @@ from app.models.schemas import (
     ProfileRead,
 )
 from app.services.matching import listing_to_read, match_hackathons
+from app.services.teammates import (
+    build_demand_dashboard,
+    interest_counts_by_listing,
+    public_interest_count,
+    upsert_interest,
+)
 
 router = APIRouter()
+
+
+def _require_ingest_token(x_ingest_token: Optional[str]) -> None:
+    settings = get_settings()
+    if settings.ingest_token and x_ingest_token != settings.ingest_token:
+        raise HTTPException(status_code=401, detail="Invalid ingest token")
+
+
+def _role_values(roles: List[TeamRole]) -> List[str]:
+    return [r.value for r in roles]
 
 
 def _profile_to_read(profile: UserProfile) -> ProfileRead:
@@ -40,8 +58,24 @@ def _profile_to_read(profile: UserProfile) -> ProfileRead:
         prefer_starter_code=profile.prefer_starter_code,
         min_deadline_days=profile.min_deadline_days,
         alerts_enabled=profile.alerts_enabled,
+        looking_for_team=bool(profile.looking_for_team),
+        team_needs=[
+            TeamRole(r)
+            for r in (profile.team_needs or [])
+            if r in {role.value for role in TeamRole}
+        ],
         created_at=profile.created_at,
         updated_at=profile.updated_at,
+    )
+
+
+def _listing_read(session: Session, listing: Listing, **kwargs) -> ListingRead:
+    counts = interest_counts_by_listing(session, [listing.id])
+    raw = counts.get(listing.id, 0)
+    return listing_to_read(
+        listing,
+        teammate_interest_count=public_interest_count(raw),
+        **kwargs,
     )
 
 
@@ -95,7 +129,6 @@ def list_listings(
         statement = statement.where(Listing.source == source)
     if has_starter_code is not None:
         statement = statement.where(Listing.has_starter_code == has_starter_code)
-    # Default feed is prize-first. has_prize=false means "include no-prize too".
     if has_prize is not False:
         statement = statement.where(
             Listing.prize_pool_usd != None,  # noqa: E711
@@ -103,7 +136,6 @@ def list_listings(
         )
 
     listings = list(session.exec(statement.limit(limit * 5)).all())
-    # Prize comps first (portable across SQLite + Postgres), then soonest deadline.
     listings.sort(
         key=lambda item: (
             -(item.prize_pool_usd or 0),
@@ -111,6 +143,7 @@ def list_listings(
         )
     )
 
+    counts = interest_counts_by_listing(session, [item.id for item in listings])
     results: List[ListingRead] = []
     for listing in listings:
         if domain and domain.value not in (listing.domains or []):
@@ -119,7 +152,12 @@ def list_listings(
             restrictions = listing.country_restrictions or []
             if restrictions and country.upper() not in {c.upper() for c in restrictions}:
                 continue
-        results.append(listing_to_read(listing))
+        results.append(
+            listing_to_read(
+                listing,
+                teammate_interest_count=public_interest_count(counts.get(listing.id, 0)),
+            )
+        )
         if len(results) >= limit:
             break
     return results
@@ -130,7 +168,77 @@ def get_listing(listing_id: str, session: Session = Depends(get_session)) -> Lis
     listing = session.get(Listing, listing_id)
     if not listing:
         raise HTTPException(status_code=404, detail="Listing not found")
-    return listing_to_read(listing)
+    return _listing_read(session, listing)
+
+
+@router.post("/listings/{listing_id}/interest", response_model=ListingInterestResponse)
+def express_listing_interest(
+    listing_id: str,
+    payload: ListingInterestCreate,
+    session: Session = Depends(get_session),
+) -> ListingInterestResponse:
+    """Phase 0: record that someone is looking for teammates on this listing.
+
+    Captures email + optional roles. Does not publish any identity.
+    """
+    listing = session.get(Listing, listing_id)
+    if not listing or not listing.is_active:
+        raise HTTPException(status_code=404, detail="Listing not found")
+
+    email = str(payload.email).strip().lower()
+    needs = _role_values(payload.team_needs)
+
+    profile: Optional[UserProfile] = None
+    if payload.profile_id:
+        profile = session.get(UserProfile, payload.profile_id)
+        if not profile:
+            raise HTTPException(status_code=404, detail="Profile not found")
+        profile.email = email
+        profile.looking_for_team = True
+        profile.team_needs = needs or profile.team_needs or []
+        profile.updated_at = utcnow()
+        session.add(profile)
+    else:
+        profile = session.exec(select(UserProfile).where(UserProfile.email == email)).first()
+        if profile:
+            profile.looking_for_team = True
+            if needs:
+                profile.team_needs = needs
+            profile.updated_at = utcnow()
+            session.add(profile)
+        else:
+            profile = UserProfile(
+                email=email,
+                looking_for_team=True,
+                team_needs=needs,
+                alerts_enabled=False,
+            )
+            session.add(profile)
+            session.commit()
+            session.refresh(profile)
+
+    session.commit()
+    upsert_interest(
+        session,
+        listing=listing,
+        email=email,
+        profile_id=profile.id,
+        team_needs=needs,
+    )
+
+    counts = interest_counts_by_listing(session, [listing.id])
+    raw = counts.get(listing.id, 0)
+    public = public_interest_count(raw)
+    return ListingInterestResponse(
+        ok=True,
+        message=(
+            "Got it — we've noted you're looking for teammates on this one. "
+            "We won't show your name or email publicly."
+        ),
+        listing_id=listing.id,
+        interest_count=raw,
+        count_is_public=public is not None,
+    )
 
 
 @router.post("/profiles", response_model=ProfileRead)
@@ -151,6 +259,8 @@ def create_profile(
         prefer_starter_code=payload.prefer_starter_code,
         min_deadline_days=payload.min_deadline_days,
         alerts_enabled=payload.alerts_enabled,
+        looking_for_team=payload.looking_for_team,
+        team_needs=_role_values(payload.team_needs),
     )
     session.add(profile)
     session.commit()
@@ -208,9 +318,19 @@ def match(payload: MatchRequest, session: Session = Depends(get_session)) -> Mat
             else profile.min_deadline_days,
             limit=payload.limit,
         )
-        return match_hackathons(session, request)
+        response = match_hackathons(session, request)
+    else:
+        response = match_hackathons(session, payload)
 
-    return match_hackathons(session, payload)
+    # Attach ambient teammate counts to match results.
+    counts = interest_counts_by_listing(session, [m.id for m in response.matches])
+    enriched = []
+    for item in response.matches:
+        data = item.model_dump()
+        data["teammate_interest_count"] = public_interest_count(counts.get(item.id, 0))
+        enriched.append(ListingRead(**data))
+    response.matches = enriched
+    return response
 
 
 @router.post("/internal/ingest", response_model=IngestResponse)
@@ -219,20 +339,21 @@ def ingest_listing(
     session: Session = Depends(get_session),
     x_ingest_token: Optional[str] = Header(default=None),
 ) -> IngestResponse:
-    settings = get_settings()
-    if settings.ingest_token and x_ingest_token != settings.ingest_token:
-        raise HTTPException(status_code=401, detail="Invalid ingest token")
+    _require_ingest_token(x_ingest_token)
 
     existing = session.exec(select(Listing).where(Listing.url == payload.url)).first()
     now = utcnow()
     if existing and payload.content_hash and existing.content_hash == payload.content_hash:
         existing.last_seen_at = now
         existing.is_active = True
+        if payload.team_channel_url:
+            existing.team_channel_url = str(payload.team_channel_url)
         session.add(existing)
         session.commit()
         return IngestResponse(status="unchanged", id=existing.id)
 
     domains = [d.value for d in payload.domains]
+    channel = str(payload.team_channel_url) if payload.team_channel_url else None
     if existing:
         existing.title = payload.title
         existing.organizer = payload.organizer
@@ -250,6 +371,8 @@ def ingest_listing(
         existing.confidence = payload.confidence
         existing.content_hash = payload.content_hash
         existing.raw_snippet = payload.raw_snippet
+        if channel is not None:
+            existing.team_channel_url = channel
         existing.is_active = True
         existing.updated_at = now
         existing.last_seen_at = now
@@ -275,6 +398,7 @@ def ingest_listing(
         confidence=payload.confidence,
         content_hash=payload.content_hash,
         raw_snippet=payload.raw_snippet,
+        team_channel_url=channel,
         is_active=True,
     )
     session.add(listing)
@@ -283,11 +407,22 @@ def ingest_listing(
     return IngestResponse(status="created", id=listing.id)
 
 
+@router.get("/internal/demand", response_model=DemandDashboard)
+def teammate_demand_dashboard(
+    session: Session = Depends(get_session),
+    x_ingest_token: Optional[str] = Header(default=None),
+) -> DemandDashboard:
+    """Phase 0 gate metrics. Protected with the same token as ingest."""
+    _require_ingest_token(x_ingest_token)
+    return build_demand_dashboard(session)
+
+
 @router.post("/alerts/subscribe", response_model=AlertSubscribeResponse)
 def subscribe_alerts(
     payload: AlertSubscribe,
     session: Session = Depends(get_session),
 ) -> AlertSubscribeResponse:
+    needs = _role_values(payload.team_needs)
     profile: Optional[UserProfile] = None
     if payload.profile_id:
         profile = session.get(UserProfile, payload.profile_id)
@@ -295,34 +430,61 @@ def subscribe_alerts(
             raise HTTPException(status_code=404, detail="Profile not found")
         profile.email = str(payload.email)
         profile.alerts_enabled = True
+        profile.looking_for_team = payload.looking_for_team or profile.looking_for_team
+        if needs:
+            profile.team_needs = needs
         profile.updated_at = utcnow()
     else:
-        profile = UserProfile(
-            email=str(payload.email),
-            free_text=payload.free_text,
-            skill_level=payload.skill_level,
-            domains=[d.value for d in payload.domains],
-            country=payload.country.upper(),
-            alerts_enabled=True,
-        )
-        session.add(profile)
-        session.commit()
-        session.refresh(profile)
+        email = str(payload.email).strip().lower()
+        profile = session.exec(select(UserProfile).where(UserProfile.email == email)).first()
+        if profile:
+            profile.alerts_enabled = True
+            profile.looking_for_team = payload.looking_for_team or profile.looking_for_team
+            if needs:
+                profile.team_needs = needs
+            if payload.free_text:
+                profile.free_text = payload.free_text
+            profile.skill_level = payload.skill_level
+            profile.domains = [d.value for d in payload.domains]
+            profile.country = payload.country.upper()
+            profile.updated_at = utcnow()
+        else:
+            profile = UserProfile(
+                email=email,
+                free_text=payload.free_text,
+                skill_level=payload.skill_level,
+                domains=[d.value for d in payload.domains],
+                country=payload.country.upper(),
+                alerts_enabled=True,
+                looking_for_team=payload.looking_for_team,
+                team_needs=needs,
+            )
+            session.add(profile)
+            session.commit()
+            session.refresh(profile)
 
     existing = session.exec(
-        select(AlertSubscription).where(AlertSubscription.email == str(payload.email))
+        select(AlertSubscription).where(AlertSubscription.email == str(payload.email).lower())
     ).first()
     if existing:
         existing.profile_id = profile.id
         existing.is_active = True
     else:
         session.add(
-            AlertSubscription(email=str(payload.email), profile_id=profile.id, is_active=True)
+            AlertSubscription(
+                email=str(payload.email).lower(),
+                profile_id=profile.id,
+                is_active=True,
+            )
         )
     session.commit()
 
+    message = "You're on the weekly alert list. We'll email matches as they open."
+    if payload.looking_for_team:
+        message += " We also noted you're looking for teammates (kept private for now)."
+
     return AlertSubscribeResponse(
         ok=True,
-        message="You're on the weekly alert list. We'll email matches as they open.",
+        message=message,
         profile_id=profile.id,
     )

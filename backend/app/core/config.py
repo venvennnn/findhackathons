@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     app_name: str = "FindHackathons API"
     app_version: str = "0.1.0"
     ingest_token: str = ""
+    # Ambient teammate count stays private until a listing hits this many signals.
+    teammate_interest_threshold: int = 8
 
     @property
     def sqlalchemy_database_url(self) -> str:

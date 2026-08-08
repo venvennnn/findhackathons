@@ -39,6 +39,7 @@ class ListingRow(Base):
     confidence = Column(String, default="medium")
     content_hash = Column(String, nullable=True, index=True)
     raw_snippet = Column(String, nullable=True)
+    team_channel_url = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
@@ -64,6 +65,7 @@ def enriched_to_payload(enriched, *, source: str, content_hash: str, raw_snippet
         "confidence": enriched.confidence.value,
         "content_hash": content_hash,
         "raw_snippet": raw_snippet[:4000],
+        "team_channel_url": getattr(enriched, "team_channel_url", None),
     }
 
 
@@ -128,6 +130,7 @@ def _upsert_direct(payload: Dict[str, Any]) -> str:
             confidence=payload["confidence"],
             content_hash=payload["content_hash"],
             raw_snippet=payload["raw_snippet"],
+            team_channel_url=payload.get("team_channel_url"),
             is_active=True,
             updated_at=now,
             last_seen_at=now,

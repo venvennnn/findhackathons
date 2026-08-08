@@ -33,6 +33,7 @@ SEED_SPECS: list[dict] = [
         "has_starter_code": True,
         "confidence": ConfidenceLevel.high,
         "raw_snippet": "Build a portfolio-ready web app with provided starter kits.",
+        "team_channel_url": "https://discord.gg/devfolio",
     },
     {
         "title": "Unstop Freshers ML Challenge",
@@ -51,6 +52,7 @@ SEED_SPECS: list[dict] = [
         "has_starter_code": True,
         "confidence": ConfidenceLevel.high,
         "raw_snippet": "Classify customer tickets with a starter notebook.",
+        "team_channel_url": "https://unstop.com/hackathons/freshers-ml-challenge",
     },
     {
         "title": "Kaggle Playground: Tabular Forecasting",
@@ -87,6 +89,7 @@ SEED_SPECS: list[dict] = [
         "has_starter_code": True,
         "confidence": ConfidenceLevel.medium,
         "raw_snippet": "Ship an NLP-powered civic tool in 48 hours.",
+        "team_channel_url": "https://devpost.com/software/ai-for-good-weekend",
     },
     {
         "title": "Web3 Campus Buildathon — Mumbai",

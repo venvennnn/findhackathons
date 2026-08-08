@@ -31,3 +31,14 @@ class SourcePlatform(str, Enum):
     devfolio = "devfolio"
     unstop = "unstop"
     other = "other"
+
+
+class TeamRole(str, Enum):
+    """Roles a user may want on a team (Phase 0 signal collection)."""
+
+    frontend = "frontend"
+    backend = "backend"
+    ml = "ml"
+    design = "design"
+    product = "product"
+    other = "other"
