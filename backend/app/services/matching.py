@@ -112,12 +112,15 @@ def filter_listings(
 
         filtered.append(listing)
 
-    # Prefer starter-code listings for beginners when requested
-    if request.prefer_starter_code and skill == SkillLevel.beginner:
-        filtered.sort(key=lambda item: (not item.has_starter_code, item.deadline_utc or now))
-    else:
-        filtered.sort(key=lambda item: item.deadline_utc or now)
+    # Prefer cash-prize comps, then starter-code for beginners, then soonest deadline.
+    def sort_key(item: Listing):
+        prize_rank = 0 if (item.prize_pool_usd and item.prize_pool_usd > 0) else 1
+        starter_rank = 0
+        if request.prefer_starter_code and skill == SkillLevel.beginner:
+            starter_rank = 0 if item.has_starter_code else 1
+        return (prize_rank, starter_rank, -(item.prize_pool_usd or 0), item.deadline_utc or now)
 
+    filtered.sort(key=sort_key)
     return filtered
 
 

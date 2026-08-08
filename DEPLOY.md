@@ -117,9 +117,13 @@ Secrets expected by `worker/modal_app.py`:
 - `OPENAI_API_KEY` — required for LLM enrichment
 - `BACKEND_API_URL` — Railway API base URL
 - `INGEST_TOKEN` — must match Railway
-- `KAGGLE_USERNAME` / `KAGGLE_KEY` — optional
+- `KAGGLE_USERNAME` / `KAGGLE_KEY` — **required for Kaggle** (featured + community).
+  Without these, Kaggle’s site is reCAPTCHA-gated from most cloud IPs.
+  Create a token at https://www.kaggle.com/settings → API.
 
 The worker posts enriched listings to `POST /api/internal/ingest`.
+The public feed defaults to cash-prize competitions; Knowledge / no-prize comps
+are ingested but only shown when the user selects “Include no-prize”.
 
 ---
 
