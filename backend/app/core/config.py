@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     ingest_token: str = ""
     # Ambient teammate count stays private until a listing hits this many signals.
     teammate_interest_threshold: int = 8
+    # Shared Discord channel where people introduce themselves / find teammates.
+    discord_team_url: str = (
+        "https://discord.com/channels/1535536397463724062/1535536398093000708"
+    )
 
     @property
     def sqlalchemy_database_url(self) -> str:

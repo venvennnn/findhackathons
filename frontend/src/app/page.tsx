@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AlertsSection } from "@/components/AlertsSection";
 import { DeadlineHorizon } from "@/components/DeadlineHorizon";
+import { SubmitCompetition } from "@/components/SubmitCompetition";
 import { TeammateSignal } from "@/components/TeammateSignal";
 import {
   DOMAIN_OPTIONS,
@@ -578,19 +579,7 @@ export default function HomePage() {
                         <span>Team ≤ {listing.team_size_max}</span>
                       )}
                     </div>
-                    <TeammateSignal
-                      listing={listing}
-                      onRecorded={(listingId, count, isPublic) => {
-                        if (!isPublic) return;
-                        setListings((current) =>
-                          current.map((row) =>
-                            row.id === listingId
-                              ? { ...row, teammate_interest_count: count }
-                              : row,
-                          ),
-                        );
-                      }}
-                    />
+                    <TeammateSignal listing={listing} />
                   </div>
                 </li>
               );
@@ -602,6 +591,8 @@ export default function HomePage() {
         skillLevel={matchOn ? matchSkill : "beginner"}
         domains={matchOn ? matchDomains : []}
       />
+
+      <SubmitCompetition />
 
       <div className="wrap colophon">
         FindHackathons · structured metadata from Devfolio, Unstop, Kaggle, and Devpost.

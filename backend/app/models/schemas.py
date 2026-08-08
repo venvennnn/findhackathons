@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from app.models.enums import (
     ConfidenceLevel,
@@ -147,9 +147,49 @@ class ListingInterestResponse(BaseModel):
     ok: bool
     message: str
     listing_id: str
+    listing_title: str
     interest_count: int
     # True when the ambient public count is now visible on the listing.
     count_is_public: bool
+    discord_url: str
+
+
+class ManualListingSubmit(BaseModel):
+    """Public form to add a competition we don't scrape (or to correct one)."""
+
+    title: str = Field(min_length=3, max_length=200)
+    url: str = Field(min_length=8, max_length=500)
+    organizer: Optional[str] = Field(default=None, max_length=200)
+    deadline_utc: Optional[datetime] = None
+    prize_pool_usd: Optional[int] = Field(default=None, ge=0, le=50_000_000)
+    domains: List[DomainCategory] = Field(default_factory=list)
+    skill_floor: SkillLevel = SkillLevel.intermediate
+    has_starter_code: bool = False
+    students_only: bool = False
+    requires_travel: bool = False
+    team_size_max: Optional[int] = Field(default=None, ge=1, le=50)
+    notes: Optional[str] = Field(default=None, max_length=1000)
+    submitter_email: Optional[EmailStr] = None
+
+    @field_validator("url")
+    @classmethod
+    def url_must_be_http(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned.startswith(("http://", "https://")):
+            raise ValueError("URL must start with http:// or https://")
+        return cleaned
+
+    @field_validator("title")
+    @classmethod
+    def title_strip(cls, value: str) -> str:
+        return value.strip()
+
+
+class ManualListingSubmitResponse(BaseModel):
+    ok: bool
+    message: str
+    id: str
+    status: str  # created | updated
 
 
 class DemandListingRow(BaseModel):

@@ -13,6 +13,10 @@ from app.models.enums import DomainCategory, SkillLevel
 from app.models.schemas import ListingRead, MatchRequest, MatchResponse
 from app.services.ranking import rank_listings_with_llm, rank_listings_heuristic
 
+
+def discord_team_url() -> str:
+    return get_settings().discord_team_url
+
 SKILL_ORDER = {
     SkillLevel.beginner: 0,
     SkillLevel.intermediate: 1,
@@ -51,7 +55,8 @@ def listing_to_read(
         is_active=listing.is_active,
         fit_reason=fit_reason,
         is_expanded_match=is_expanded_match,
-        team_channel_url=listing.team_channel_url,
+        # Prefer listing-specific channel; fall back to shared FindHackathons Discord.
+        team_channel_url=listing.team_channel_url or discord_team_url(),
         teammate_interest_count=teammate_interest_count,
     )
 
