@@ -29,6 +29,7 @@ def listing_to_read(
     *,
     fit_reason: Optional[str] = None,
     is_expanded_match: bool = False,
+    teammate_interest_count: Optional[int] = None,
 ) -> ListingRead:
     return ListingRead(
         id=listing.id,
@@ -50,6 +51,8 @@ def listing_to_read(
         is_active=listing.is_active,
         fit_reason=fit_reason,
         is_expanded_match=is_expanded_match,
+        team_channel_url=listing.team_channel_url,
+        teammate_interest_count=teammate_interest_count,
     )
 
 

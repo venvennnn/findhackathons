@@ -865,6 +865,106 @@ button {
   color: var(--ink);
 }
 
+.teammate {
+  position: relative;
+  z-index: 2;
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.teammate-ambient {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.teammate-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  align-items: center;
+}
+
+.teammate-link,
+.teammate-btn {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: none;
+  border: none;
+  padding: 0;
+  color: #2a20a8;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.teammate-done {
+  font-size: 13px;
+  color: var(--moss);
+}
+
+.teammate-form {
+  display: grid;
+  gap: 8px;
+  padding: 12px 0 2px;
+}
+
+.teammate-form input[type="email"] {
+  width: 100%;
+  max-width: 280px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: inherit;
+  background: #fff;
+}
+
+.teammate-form > button[type="submit"] {
+  justify-self: start;
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: #fff;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.teammate-hint,
+.teammate-error {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--slate);
+}
+
+.teammate-error {
+  color: var(--coral);
+}
+
+.team-needs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.team-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 4px;
+  font-size: 13.5px;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.team-check input {
+  accent-color: #2a20a8;
+}
+
 .skel {
   background: var(--card);
   border: 1px solid var(--line);
@@ -968,7 +1068,7 @@ button {
   color: var(--slate);
 }
 
-.form button {
+.form > button[type="submit"] {
   border: 0;
   background: var(--ink);
   color: #fff;
@@ -978,9 +1078,17 @@ button {
   font-weight: 500;
 }
 
-.form button:disabled {
+.form > button[type="submit"]:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.form .team-needs {
+  flex: 1 1 100%;
+}
+
+.form .team-check {
+  flex: 1 1 100%;
 }
 
 .fineprint {

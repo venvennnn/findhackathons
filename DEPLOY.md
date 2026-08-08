@@ -125,6 +125,23 @@ The worker posts enriched listings to `POST /api/internal/ingest`.
 The public feed defaults to cash-prize competitions; Knowledge / no-prize comps
 are ingested but only shown when the user selects “Include no-prize”.
 
+### Teammate finding (Phase 0)
+
+Optional env on Railway:
+
+- `TEAMMATE_INTEREST_THRESHOLD=8` — ambient “N people looking for teammates”
+  only appears on a listing once interest hits this count.
+
+Internal demand dashboard (same token as ingest):
+
+```bash
+curl -H "X-Ingest-Token: $INGEST_TOKEN" https://YOUR-RAILWAY-URL/api/internal/demand
+```
+
+`gate_passed` is true when ≥15% of email profiles are looking for a team **and**
+at least one listing has ≥ threshold interests. Do not build Phase 1 public
+teammate profiles until that gate passes.
+
 ---
 
 ## Smoke checklist

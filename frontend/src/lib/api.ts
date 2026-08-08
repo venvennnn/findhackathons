@@ -11,6 +11,14 @@ export type DomainCategory =
   | "game-dev"
   | "other";
 
+export type TeamRole =
+  | "frontend"
+  | "backend"
+  | "ml"
+  | "design"
+  | "product"
+  | "other";
+
 export interface Listing {
   id: string;
   title: string;
@@ -31,6 +39,10 @@ export interface Listing {
   is_active: boolean;
   fit_reason?: string | null;
   is_expanded_match?: boolean;
+  /** Event-run Discord / Devpost team channel. */
+  team_channel_url?: string | null;
+  /** Ambient demand — only present once count clears the server threshold. */
+  teammate_interest_count?: number | null;
 }
 
 export interface MatchResponse {
@@ -53,6 +65,8 @@ export interface ProfilePayload {
   prefer_starter_code: boolean;
   min_deadline_days: number;
   alerts_enabled: boolean;
+  looking_for_team?: boolean;
+  team_needs?: TeamRole[];
 }
 
 export interface Profile extends ProfilePayload {
@@ -123,6 +137,8 @@ export function subscribeAlerts(payload: {
   domains: DomainCategory[];
   country: string;
   free_text?: string;
+  looking_for_team?: boolean;
+  team_needs?: TeamRole[];
 }) {
   return request<{ ok: boolean; message: string; profile_id: string }>(
     "/api/alerts/subscribe",
@@ -133,10 +149,35 @@ export function subscribeAlerts(payload: {
   );
 }
 
+export function expressListingInterest(
+  listingId: string,
+  payload: { email: string; team_needs?: TeamRole[]; profile_id?: string },
+) {
+  return request<{
+    ok: boolean;
+    message: string;
+    listing_id: string;
+    interest_count: number;
+    count_is_public: boolean;
+  }>(`/api/listings/${listingId}/interest`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export function getListings(params?: Record<string, string>) {
   const query = params ? `?${new URLSearchParams(params)}` : "";
   return request<Listing[]>(`/api/listings${query}`);
 }
+
+export const TEAM_ROLE_OPTIONS: { value: TeamRole; label: string }[] = [
+  { value: "frontend", label: "Frontend" },
+  { value: "backend", label: "Backend" },
+  { value: "ml", label: "ML / DS" },
+  { value: "design", label: "Design" },
+  { value: "product", label: "Product" },
+  { value: "other", label: "Other" },
+];
 
 export const DOMAIN_OPTIONS: { value: DomainCategory; label: string }[] = [
   { value: "web-dev", label: "Web Dev" },

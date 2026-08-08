@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from typing import List, Optional
 from uuid import uuid4
 
-from sqlalchemy import Column, JSON
+from sqlalchemy import Column, JSON, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 from app.models.enums import ConfidenceLevel, SkillLevel, SourcePlatform
@@ -37,6 +37,8 @@ class Listing(SQLModel, table=True):
     confidence: ConfidenceLevel = ConfidenceLevel.medium
     content_hash: Optional[str] = Field(default=None, index=True)
     raw_snippet: Optional[str] = None
+    # Outbound link to the event's own team-finding channel (Discord, Devpost, etc.)
+    team_channel_url: Optional[str] = None
     is_active: bool = Field(default=True, index=True)
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
@@ -59,6 +61,9 @@ class UserProfile(SQLModel, table=True):
     prefer_starter_code: bool = True
     min_deadline_days: int = 7
     alerts_enabled: bool = Field(default=False, index=True)
+    # Phase 0 teammate signal — intent only, no public profile.
+    looking_for_team: bool = Field(default=False, index=True)
+    team_needs: List[str] = Field(default_factory=list, sa_column=Column(JSON))
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
 
@@ -72,3 +77,19 @@ class AlertSubscription(SQLModel, table=True):
     is_active: bool = Field(default=True, index=True)
     created_at: datetime = Field(default_factory=utcnow)
     last_sent_at: Optional[datetime] = None
+
+
+class ListingInterest(SQLModel, table=True):
+    """Per-listing 'looking for teammates' signal (Phase 0). No public identity."""
+
+    __tablename__ = "listing_interests"
+    __table_args__ = (
+        UniqueConstraint("email", "listing_id", name="uq_interest_email_listing"),
+    )
+
+    id: str = Field(default_factory=new_id, primary_key=True)
+    listing_id: str = Field(foreign_key="listings.id", index=True)
+    email: str = Field(index=True)
+    profile_id: Optional[str] = Field(default=None, foreign_key="user_profiles.id", index=True)
+    team_needs: List[str] = Field(default_factory=list, sa_column=Column(JSON))
+    created_at: datetime = Field(default_factory=utcnow)

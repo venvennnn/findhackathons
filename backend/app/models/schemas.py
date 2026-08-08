@@ -3,7 +3,13 @@ from typing import List, Optional
 
 from pydantic import BaseModel, EmailStr, Field
 
-from app.models.enums import ConfidenceLevel, DomainCategory, SkillLevel, SourcePlatform
+from app.models.enums import (
+    ConfidenceLevel,
+    DomainCategory,
+    SkillLevel,
+    SourcePlatform,
+    TeamRole,
+)
 
 
 class Eligibility(BaseModel):
@@ -60,6 +66,10 @@ class ListingRead(BaseModel):
     is_active: bool
     fit_reason: Optional[str] = None
     is_expanded_match: bool = False
+    # Event-run team channel (Discord / Devpost forum). Safe outbound link.
+    team_channel_url: Optional[str] = None
+    # Ambient demand signal — only populated once count >= threshold. No names.
+    teammate_interest_count: Optional[int] = None
 
 
 class ProfileCreate(BaseModel):
@@ -78,6 +88,8 @@ class ProfileCreate(BaseModel):
     prefer_starter_code: bool = True
     min_deadline_days: int = Field(default=7, ge=0, le=365)
     alerts_enabled: bool = False
+    looking_for_team: bool = False
+    team_needs: List[TeamRole] = Field(default_factory=list)
 
 
 class ProfileRead(ProfileCreate):
@@ -115,12 +127,52 @@ class AlertSubscribe(BaseModel):
     domains: List[DomainCategory] = Field(default_factory=list)
     country: str = "IN"
     free_text: Optional[str] = None
+    looking_for_team: bool = False
+    team_needs: List[TeamRole] = Field(default_factory=list)
 
 
 class AlertSubscribeResponse(BaseModel):
     ok: bool
     message: str
     profile_id: str
+
+
+class ListingInterestCreate(BaseModel):
+    email: EmailStr
+    profile_id: Optional[str] = None
+    team_needs: List[TeamRole] = Field(default_factory=list)
+
+
+class ListingInterestResponse(BaseModel):
+    ok: bool
+    message: str
+    listing_id: str
+    interest_count: int
+    # True when the ambient public count is now visible on the listing.
+    count_is_public: bool
+
+
+class DemandListingRow(BaseModel):
+    listing_id: str
+    title: str
+    source: SourcePlatform
+    deadline_utc: Optional[datetime] = None
+    interest_count: int
+    team_channel_url: Optional[str] = None
+    is_active: bool
+
+
+class DemandDashboard(BaseModel):
+    """Internal Phase 0 metrics — gated by ingest/admin token."""
+
+    threshold: int
+    profiles_looking_for_team: int
+    profiles_total_with_email: int
+    looking_for_team_rate: float
+    listings_at_or_above_threshold: int
+    total_interests: int
+    gate_passed: bool
+    listings: List[DemandListingRow]
 
 
 class HealthResponse(BaseModel):
@@ -148,6 +200,7 @@ class IngestListing(BaseModel):
     confidence: ConfidenceLevel = ConfidenceLevel.medium
     content_hash: Optional[str] = None
     raw_snippet: Optional[str] = None
+    team_channel_url: Optional[str] = None
 
 
 class IngestResponse(BaseModel):
