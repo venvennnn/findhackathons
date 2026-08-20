@@ -102,8 +102,27 @@ def listing_from_structured(
         except (TypeError, ValueError):
             prize_pool = None
 
-    skill = _infer_skill(category, bool(structured.get("has_starter_code")), description, title)
-    domains = _infer_domains(title, description, category)
+    skill_hint = str(structured.get("skill_floor") or "").lower()
+    if skill_hint in {s.value for s in SkillLevel}:
+        skill = SkillLevel(skill_hint)
+        reasoning = str(
+            structured.get("skill_floor_reasoning")
+            or _skill_reasoning(skill, category, bool(structured.get("has_starter_code")))
+        )
+    else:
+        skill = _infer_skill(category, bool(structured.get("has_starter_code")), description, title)
+        reasoning = _skill_reasoning(skill, category, bool(structured.get("has_starter_code")))
+
+    raw_domains = structured.get("domains") or []
+    domains: List[DomainCategory] = []
+    if isinstance(raw_domains, list) and raw_domains:
+        valid = {d.value for d in DomainCategory}
+        for item in raw_domains:
+            value = getattr(item, "value", item)
+            if str(value) in valid:
+                domains.append(DomainCategory(str(value)))
+    if not domains:
+        domains = _infer_domains(title, description, category)
     deadline = _parse_deadline(structured.get("deadline_utc"))
 
     team_size = structured.get("team_size_max")
@@ -113,7 +132,12 @@ def listing_from_structured(
         team_size_max = None
 
     has_starter = bool(structured.get("has_starter_code"))
-    reasoning = _skill_reasoning(skill, category, has_starter)
+    conf_raw = str(structured.get("confidence") or "medium").lower()
+    confidence = (
+        ConfidenceLevel(conf_raw)
+        if conf_raw in {c.value for c in ConfidenceLevel}
+        else ConfidenceLevel.medium
+    )
 
     return HackathonListing(
         title=title,
@@ -124,14 +148,14 @@ def listing_from_structured(
         skill_floor=skill,
         skill_floor_reasoning=reasoning,
         eligibility=Eligibility(
-            students_only=False,
+            students_only=bool(structured.get("students_only", False)),
             country_restrictions=[],
             team_size_max=team_size_max,
-            requires_travel=False,
+            requires_travel=bool(structured.get("requires_travel", False)),
         ),
         prize_pool_usd=prize_pool if prize_pool and prize_pool > 0 else None,
         has_starter_code=has_starter,
-        confidence=ConfidenceLevel.high,
+        confidence=confidence,
     )
 
 
