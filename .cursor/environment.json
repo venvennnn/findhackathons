@@ -1,5 +1,11 @@
 {
   "snapshot": "DEFAULT",
-  "install": "sudo apt-get update -qq && sudo apt-get install -y -qq python3.12-venv >/dev/null\ncd backend && python3 -m venv .venv && . .venv/bin/activate && pip install -r requirements.txt\ncd ../frontend && npm install",
-  "start": "cd backend && . .venv/bin/activate && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+  "install": "set -euo pipefail\nsudo apt-get update -qq\nsudo apt-get install -y -qq python3.12-venv curl >/dev/null\ncd backend\nif [ ! -d .venv ]; then python3 -m venv .venv; fi\n. .venv/bin/activate\npip install -q -r requirements.txt\npip install -q httpx\ncd ../frontend\nif [ -f package-lock.json ]; then npm ci; else npm install; fi",
+  "start": "set -euo pipefail\ncd backend\n. .venv/bin/activate\nif curl -sf http://127.0.0.1:8000/api/health >/dev/null 2>&1; then\n  echo 'API already healthy on :8000'\n  exit 0\nfi\nnohup uvicorn app.main:app --host 0.0.0.0 --port 8000 >/tmp/findhackathons-api.log 2>&1 &\nfor i in $(seq 1 40); do\n  if curl -sf http://127.0.0.1:8000/api/health >/dev/null 2>&1; then\n    echo 'API healthy on :8000'\n    exit 0\n  fi\n  sleep 0.5\ndone\necho 'API failed to become healthy; last log:'\ntail -n 40 /tmp/findhackathons-api.log || true\nexit 1",
+  "ports": [
+    {
+      "name": "api",
+      "port": 8000
+    }
+  ]
 }
