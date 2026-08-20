@@ -11,12 +11,12 @@ const config: Config = {
       colors: {
         ink: "var(--ink)",
         paper: "var(--paper)",
-        violet: "var(--violet)",
+        violet: "var(--link)",
       },
       fontFamily: {
-        display: ["var(--font-display)", "sans-serif"],
-        body: ["var(--font-body)", "sans-serif"],
-        mono: ["var(--font-mono)", "monospace"],
+        display: ["var(--font-display)", "Times New Roman", "serif"],
+        body: ["var(--font-body)", "Helvetica", "sans-serif"],
+        mono: ["var(--font-mono)", "Courier New", "monospace"],
       },
     },
   },

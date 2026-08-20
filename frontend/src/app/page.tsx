@@ -256,17 +256,17 @@ export default function HomePage() {
       <header className="topbar">
         <div className="wrap">
           <Link className="mark" href="/">
-            find<span>hackathons</span>
+            Find<span>Hackathons</span>
           </Link>
-          <nav className="topnav">
-            <a className="tlink" href="#submit">
-              Add a competition
+          <nav className="topnav" aria-label="Sections">
+            <a className="tlink" href="#matcher">
+              Match me
             </a>
             <a className="tlink" href="#alerts">
               Weekly alerts
             </a>
-            <a className="tlink solid" href="#matcher">
-              Match me
+            <a className="tlink" href="#submit">
+              Add a competition
             </a>
           </nav>
         </div>
@@ -274,14 +274,14 @@ export default function HomePage() {
 
       <section className="hero wrap">
         <p className="eyebrow">
-          Live inventory · {loading ? "…" : `${listings.length} open`}
+          Directory · {loading ? "…" : `${listings.length} open now`}
         </p>
         <h1>
           Hackathons you can <em>actually finish.</em>
         </h1>
         <p className="lede">
-          Every listing shows how much runway is left, how much work it takes, and
-          whether you&apos;re eligible — before you click through.
+          A plain list of active competitions — skill floor, eligibility, runway,
+          and prize — before you click through.
         </p>
 
         <DeadlineHorizon listings={sorted.length ? sorted : listings} />
@@ -598,7 +598,7 @@ export default function HomePage() {
       <SubmitCompetition />
 
       <div className="wrap colophon">
-        FindHackathons · structured metadata from Devfolio, Unstop, Kaggle, and Devpost.
+        FindHackathons · Devfolio, Unstop, Kaggle, Devpost, and community submissions
       </div>
     </>
   );
