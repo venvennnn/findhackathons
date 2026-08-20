@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List, Optional, Set
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from sqlmodel import Session, col, select
@@ -29,6 +29,8 @@ from app.models.schemas import (
     MatchResponse,
     ProfileCreate,
     ProfileRead,
+    SourceCount,
+    SourcesResponse,
 )
 from app.services.matching import discord_team_url, listing_to_read, match_hackathons
 from app.services.teammates import (
@@ -39,6 +41,42 @@ from app.services.teammates import (
 )
 
 router = APIRouter()
+
+# Default feed: Devpost + Kaggle + Devfolio + community submissions.
+# Unstop is opt-in only.
+DEFAULT_FEED_SOURCES: List[SourcePlatform] = [
+    SourcePlatform.kaggle,
+    SourcePlatform.devpost,
+    SourcePlatform.devfolio,
+    SourcePlatform.manual,
+]
+
+SOURCE_LABELS = {
+    SourcePlatform.kaggle: "Kaggle",
+    SourcePlatform.devpost: "Devpost",
+    SourcePlatform.devfolio: "Devfolio",
+    SourcePlatform.unstop: "Unstop",
+    SourcePlatform.manual: "Added by people",
+    SourcePlatform.other: "Other sites",
+}
+
+
+def _parse_sources(raw: Optional[str]) -> Optional[List[SourcePlatform]]:
+    if not raw or not raw.strip():
+        return None
+    out: List[SourcePlatform] = []
+    seen: Set[str] = set()
+    for part in raw.split(","):
+        key = part.strip().lower()
+        if not key or key in seen:
+            continue
+        try:
+            platform = SourcePlatform(key)
+        except ValueError:
+            continue
+        seen.add(key)
+        out.append(platform)
+    return out or None
 
 
 def _require_ingest_token(x_ingest_token: Optional[str]) -> None:
@@ -113,6 +151,17 @@ def list_listings(
     skill_level: Optional[SkillLevel] = None,
     domain: Optional[DomainCategory] = None,
     source: Optional[SourcePlatform] = None,
+    sources: Optional[str] = Query(
+        default=None,
+        description=(
+            "Comma-separated platforms, e.g. kaggle,devpost,devfolio,manual. "
+            "Default excludes Unstop unless include_unstop=true."
+        ),
+    ),
+    include_unstop: bool = Query(
+        default=False,
+        description="When no sources= is set, also include Unstop listings.",
+    ),
     country: Optional[str] = None,
     has_starter_code: Optional[bool] = None,
     has_prize: Optional[bool] = Query(
@@ -133,8 +182,18 @@ def list_listings(
         )
     if skill_level:
         statement = statement.where(Listing.skill_floor == skill_level)
+
+    # Source filter: single `source` wins; else `sources`; else default feed.
     if source:
-        statement = statement.where(Listing.source == source)
+        allowed = [source]
+    else:
+        allowed = _parse_sources(sources)
+        if allowed is None:
+            allowed = list(DEFAULT_FEED_SOURCES)
+            if include_unstop:
+                allowed.append(SourcePlatform.unstop)
+    statement = statement.where(col(Listing.source).in_([s.value for s in allowed]))
+
     if has_starter_code is not None:
         statement = statement.where(Listing.has_starter_code == has_starter_code)
     if has_prize is not False:
@@ -169,6 +228,50 @@ def list_listings(
         if len(results) >= limit:
             break
     return results
+
+
+@router.get("/sources", response_model=SourcesResponse)
+def list_sources(
+    active_only: bool = True,
+    session: Session = Depends(get_session),
+) -> SourcesResponse:
+    """Active listing counts by source — powers the directory sidebar."""
+    statement = select(Listing)
+    if active_only:
+        statement = statement.where(Listing.is_active == True)  # noqa: E712
+        now = datetime.now(timezone.utc)
+        statement = statement.where(
+            (Listing.deadline_utc == None) | (col(Listing.deadline_utc) >= now)  # noqa: E711
+        )
+    listings = list(session.exec(statement).all())
+    tallies: dict[str, int] = {}
+    for item in listings:
+        key = item.source.value if hasattr(item.source, "value") else str(item.source)
+        tallies[key] = tallies.get(key, 0) + 1
+
+    default_set = {s.value for s in DEFAULT_FEED_SOURCES}
+    # Always surface known platforms (even at 0) so the sidebar is stable;
+    # append any unexpected keys (legacy "other" hosts people submitted).
+    ordered = [s.value for s in SourcePlatform]
+    for key in sorted(tallies):
+        if key not in ordered:
+            ordered.append(key)
+
+    rows: List[SourceCount] = []
+    for key in ordered:
+        try:
+            platform = SourcePlatform(key)
+        except ValueError:
+            continue
+        rows.append(
+            SourceCount(
+                source=platform,
+                label=SOURCE_LABELS.get(platform, key.title()),
+                count=tallies.get(key, 0),
+                in_default_feed=key in default_set,
+            )
+        )
+    return SourcesResponse(sources=rows, default_sources=list(DEFAULT_FEED_SOURCES))
 
 
 @router.post("/listings/submit", response_model=ManualListingSubmitResponse)

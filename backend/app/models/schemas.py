@@ -222,6 +222,18 @@ class HealthResponse(BaseModel):
     environment: str
 
 
+class SourceCount(BaseModel):
+    source: SourcePlatform
+    label: str
+    count: int
+    in_default_feed: bool = False
+
+
+class SourcesResponse(BaseModel):
+    sources: List[SourceCount]
+    default_sources: List[SourcePlatform]
+
+
 class IngestListing(BaseModel):
     title: str
     organizer: str

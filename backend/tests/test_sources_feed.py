@@ -1,0 +1,106 @@
+"""Default feed excludes Unstop; /api/sources returns per-platform counts."""
+
+from datetime import datetime, timedelta, timezone
+
+from fastapi.testclient import TestClient
+from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel.pool import StaticPool
+
+from app.core.config import get_settings
+from app.core.database import get_session
+from app.main import app
+from app.models.db import Listing
+from app.models.enums import ConfidenceLevel, SkillLevel, SourcePlatform
+
+
+def _client_with_db():
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    SQLModel.metadata.create_all(engine)
+    now = datetime.now(timezone.utc)
+
+    with Session(engine) as session:
+        rows = [
+            ("Kaggle Prize", SourcePlatform.kaggle, 1000),
+            ("Devpost Hack", SourcePlatform.devpost, 500),
+            ("Devfolio Open", SourcePlatform.devfolio, 200),
+            ("Unstop Near", SourcePlatform.unstop, 300),
+            ("Manual Add", SourcePlatform.manual, 100),
+        ]
+        for title, source, prize in rows:
+            session.add(
+                Listing(
+                    title=title,
+                    organizer="Test",
+                    url=f"https://example.com/{source.value}/{title.replace(' ', '-')}",
+                    source=source,
+                    deadline_utc=now + timedelta(days=14),
+                    domains=["other"],
+                    skill_floor=SkillLevel.beginner,
+                    skill_floor_reasoning="test",
+                    students_only=False,
+                    country_restrictions=[],
+                    prize_pool_usd=prize,
+                    has_starter_code=False,
+                    confidence=ConfidenceLevel.high,
+                    is_active=True,
+                )
+            )
+        session.commit()
+
+    def override_session():
+        with Session(engine) as session:
+            yield session
+
+    app.dependency_overrides[get_session] = override_session
+    get_settings.cache_clear()
+    return TestClient(app)
+
+
+def test_default_listings_exclude_unstop():
+    client = _client_with_db()
+    response = client.get("/api/listings", params={"limit": 50, "has_prize": "true"})
+    assert response.status_code == 200
+    sources = {item["source"] for item in response.json()}
+    assert "unstop" not in sources
+    assert "kaggle" in sources
+    assert "devpost" in sources
+    assert "devfolio" in sources
+    assert "manual" in sources
+
+
+def test_include_unstop_flag():
+    client = _client_with_db()
+    response = client.get(
+        "/api/listings",
+        params={"limit": 50, "has_prize": "true", "include_unstop": "true"},
+    )
+    assert response.status_code == 200
+    sources = {item["source"] for item in response.json()}
+    assert "unstop" in sources
+
+
+def test_sources_query_param():
+    client = _client_with_db()
+    response = client.get(
+        "/api/listings",
+        params={"limit": 50, "has_prize": "true", "sources": "unstop"},
+    )
+    assert response.status_code == 200
+    sources = {item["source"] for item in response.json()}
+    assert sources == {"unstop"}
+
+
+def test_sources_endpoint_counts():
+    client = _client_with_db()
+    response = client.get("/api/sources")
+    assert response.status_code == 200
+    body = response.json()
+    by_source = {row["source"]: row["count"] for row in body["sources"]}
+    assert by_source.get("kaggle", 0) >= 1
+    assert by_source.get("unstop", 0) >= 1
+    assert "kaggle" in body["default_sources"]
+    assert "unstop" not in body["default_sources"]

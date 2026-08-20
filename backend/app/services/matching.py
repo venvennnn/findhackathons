@@ -9,13 +9,15 @@ from sqlmodel import Session, col, select
 
 from app.core.config import get_settings
 from app.models.db import Listing
-from app.models.enums import DomainCategory, SkillLevel
+from app.models.enums import DomainCategory, SkillLevel, SourcePlatform
 from app.models.schemas import ListingRead, MatchRequest, MatchResponse
 from app.services.ranking import rank_listings_with_llm, rank_listings_heuristic
 
 
 def discord_team_url() -> str:
     return get_settings().discord_team_url
+
+# Match feed mirrors the directory default: Unstop is opt-in on the UI only.
 
 SKILL_ORDER = {
     SkillLevel.beginner: 0,
@@ -87,6 +89,10 @@ def filter_listings(
 
     filtered: List[Listing] = []
     for listing in listings:
+        src_val = listing.source.value if hasattr(listing.source, "value") else str(listing.source)
+        if src_val == SourcePlatform.unstop.value:
+            continue
+
         if SKILL_ORDER.get(listing.skill_floor, 0) > max_skill_rank:
             continue
 

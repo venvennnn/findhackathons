@@ -196,6 +196,42 @@ export function getListings(params?: Record<string, string>) {
   return request<Listing[]>(`/api/listings${query}`);
 }
 
+export type SourcePlatform =
+  | "kaggle"
+  | "devpost"
+  | "devfolio"
+  | "unstop"
+  | "manual"
+  | "other";
+
+export interface SourceCount {
+  source: SourcePlatform;
+  label: string;
+  count: number;
+  in_default_feed: boolean;
+}
+
+export interface SourcesResponse {
+  sources: SourceCount[];
+  default_sources: SourcePlatform[];
+}
+
+export function getSources() {
+  return request<SourcesResponse>("/api/sources");
+}
+
+/** Default directory feed — Unstop is opt-in. */
+export const DEFAULT_FEED_SOURCES: SourcePlatform[] = [
+  "kaggle",
+  "devpost",
+  "devfolio",
+  "manual",
+];
+
+export function sourcesParam(sources: SourcePlatform[]): string {
+  return sources.join(",");
+}
+
 export const TEAM_ROLE_OPTIONS: { value: TeamRole; label: string }[] = [
   { value: "frontend", label: "Frontend" },
   { value: "backend", label: "Backend" },

@@ -56,26 +56,20 @@ def _run_pipeline(limit_per_source: int = 20, kaggle_limit: int = 200) -> Dict[s
 
     raw_batches = [
         ("kaggle", kaggle_rows),
-        ("devpost", fetch_devpost(limit=limit_per_source)),
-        ("devfolio", fetch_devfolio(limit=limit_per_source)),
-        ("unstop", fetch_unstop(limit=limit_per_source)),
+        ("devpost", fetch_devpost(limit=max(limit_per_source, 60))),
+        ("devfolio", fetch_devfolio(limit=max(limit_per_source, 60))),
+        ("unstop", fetch_unstop(limit=20)),  # product: only nearest ~20
     ]
 
-    # Prefer Playwright for Unstop when available
+    # Unstop API path is preferred; playwright alias just reuses it.
     try:
         from scrapers.unstop import fetch_unstop_playwright
 
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                raise RuntimeError("loop running")
-            unstop_pw = loop.run_until_complete(fetch_unstop_playwright(limit=limit_per_source))
-        except RuntimeError:
-            unstop_pw = asyncio.run(fetch_unstop_playwright(limit=limit_per_source))
+        unstop_pw = fetch_unstop_playwright(limit=20)
         if unstop_pw:
             raw_batches = [b for b in raw_batches if b[0] != "unstop"] + [("unstop", unstop_pw)]
     except Exception as exc:  # noqa: BLE001
-        print(f"[pipeline] playwright unstop skipped: {exc}")
+        print(f"[pipeline] unstop refresh skipped: {exc}")
 
     stats = {
         "fetched": 0,

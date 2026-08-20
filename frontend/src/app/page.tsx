@@ -7,14 +7,19 @@ import { DeadlineHorizon } from "@/components/DeadlineHorizon";
 import { SubmitCompetition } from "@/components/SubmitCompetition";
 import { TeammateSignal } from "@/components/TeammateSignal";
 import {
+  DEFAULT_FEED_SOURCES,
   DOMAIN_OPTIONS,
   DomainCategory,
   Listing,
   MATCH_EXAMPLES,
   SkillLevel,
+  SourceCount,
+  SourcePlatform,
   getListings,
+  getSources,
   inferProfile,
   matchHackathons,
+  sourcesParam,
 } from "@/lib/api";
 import {
   daysUntil,
@@ -48,10 +53,14 @@ export default function HomePage() {
   const [query, setQuery] = useState("");
   const [level, setLevel] = useState<SkillLevel | "all">("all");
   const [domains, setDomains] = useState<Set<DomainCategory>>(new Set());
-  const [flags, setFlags] = useState<Set<"starter" | "india" | "noPrize">>(
+  const [flags, setFlags] = useState<Set<"starter" | "india" | "noPrize" | "unstop">>(
     new Set(),
   );
   const [sort, setSort] = useState<SortKey>("prize");
+  const [sourceRows, setSourceRows] = useState<SourceCount[]>([]);
+  const [sourceFilter, setSourceFilter] = useState<SourcePlatform | "default">(
+    "default",
+  );
 
   const [matchText, setMatchText] = useState("");
   const [matching, setMatching] = useState(false);
@@ -65,6 +74,30 @@ export default function HomePage() {
   const [matchDomains, setMatchDomains] = useState<DomainCategory[]>([]);
 
   const includeNoPrize = flags.has("noPrize");
+  const includeUnstop = flags.has("unstop");
+
+  const feedSources = useMemo((): SourcePlatform[] => {
+    if (sourceFilter !== "default") return [sourceFilter];
+    const base = [...DEFAULT_FEED_SOURCES];
+    if (includeUnstop && !base.includes("unstop")) base.push("unstop");
+    return base;
+  }, [sourceFilter, includeUnstop]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getSources()
+      .then((data) => {
+        if (!cancelled) setSourceRows(data.sources);
+      })
+      .catch(() => {
+        /* sidebar is non-critical */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const feedKey = sourcesParam(feedSources);
 
   useEffect(() => {
     let cancelled = false;
@@ -72,12 +105,21 @@ export default function HomePage() {
       setLoading(true);
       setError("");
       try {
-        // Default: cash-prize comps only. Toggle "Include no-prize" to widen.
+        // Default: cash-prize comps from Devpost/Kaggle/Devfolio (+ manual).
+        // Unstop only when opted in or selected in the sidebar.
         const data = await getListings({
           limit: "60",
           has_prize: includeNoPrize ? "false" : "true",
+          sources: feedKey,
         });
-        if (!cancelled) setListings(data);
+        if (!cancelled) {
+          setListings(data);
+          getSources()
+            .then((src) => {
+              if (!cancelled) setSourceRows(src.sources);
+            })
+            .catch(() => undefined);
+        }
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : "Failed to load listings");
@@ -90,7 +132,7 @@ export default function HomePage() {
     return () => {
       cancelled = true;
     };
-  }, [includeNoPrize]);
+  }, [includeNoPrize, feedKey]);
 
   const enriched: EnrichedListing[] = useMemo(() => {
     return listings.map((listing, index) => {
@@ -153,7 +195,9 @@ export default function HomePage() {
     domains.size > 0 ||
     flags.has("starter") ||
     flags.has("india") ||
-    flags.has("noPrize");
+    flags.has("noPrize") ||
+    flags.has("unstop") ||
+    sourceFilter !== "default";
 
   function toggleDomain(domain: DomainCategory) {
     setDomains((current) => {
@@ -164,7 +208,7 @@ export default function HomePage() {
     });
   }
 
-  function toggleFlag(flag: "starter" | "india" | "noPrize") {
+  function toggleFlag(flag: "starter" | "india" | "noPrize" | "unstop") {
     setFlags((current) => {
       const next = new Set(current);
       if (next.has(flag)) next.delete(flag);
@@ -178,6 +222,7 @@ export default function HomePage() {
     setLevel("all");
     setDomains(new Set());
     setFlags(new Set());
+    setSourceFilter("default");
   }
 
   async function runMatch() {
@@ -276,12 +321,10 @@ export default function HomePage() {
         <p className="eyebrow">
           Directory · {loading ? "…" : `${listings.length} open now`}
         </p>
-        <h1>
-          Hackathons you can <em>actually finish.</em>
-        </h1>
+        <h1>Hackathons you can actually finish.</h1>
         <p className="lede">
-          A plain list of active competitions — skill floor, eligibility, runway,
-          and prize — before you click through.
+          Active competitions from Devpost, Kaggle, and Devfolio — skill floor,
+          eligibility, runway, and prize. Unstop is optional; add others yourself.
         </p>
 
         <DeadlineHorizon listings={sorted.length ? sorted : listings} />
@@ -446,6 +489,17 @@ export default function HomePage() {
               <button
                 type="button"
                 className="chip flag"
+                aria-pressed={flags.has("unstop")}
+                onClick={() => {
+                  toggleFlag("unstop");
+                  if (sourceFilter === "unstop") setSourceFilter("default");
+                }}
+              >
+                Include Unstop
+              </button>
+              <button
+                type="button"
+                className="chip flag"
                 aria-pressed={flags.has("starter")}
                 onClick={() => toggleFlag("starter")}
               >
@@ -464,7 +518,8 @@ export default function HomePage() {
         </div>
       </div>
 
-      <main className="wrap">
+      <main className="wrap page-grid">
+        <div>
         <div className="meta">
           <span>
             {loading ? (
@@ -480,6 +535,7 @@ export default function HomePage() {
                 {includeNoPrize ? "open" : "with prizes"} ·{" "}
                 <b>{sorted.filter((item) => (item.daysLeft ?? 99) <= 7).length}</b>{" "}
                 close this week
+                {sourceFilter !== "default" ? ` · ${sourceFilter}` : ""}
               </>
             )}
           </span>
@@ -588,6 +644,45 @@ export default function HomePage() {
               );
             })}
         </ul>
+        </div>
+
+        <aside className="sources-side" aria-label="Sources">
+          <h2>From these sites</h2>
+          <p>
+            Default feed is Devpost, Kaggle, and Devfolio. Unstop is optional.
+            Community submissions show under &ldquo;Added by people.&rdquo;
+          </p>
+          <ul>
+            <li>
+              <button
+                type="button"
+                className={sourceFilter === "default" ? "on" : undefined}
+                onClick={() => setSourceFilter("default")}
+              >
+                Default feed
+              </button>
+            </li>
+            {sourceRows
+              .filter((row) => row.count > 0 || row.in_default_feed || row.source === "unstop")
+              .map((row) => (
+                <li key={row.source}>
+                  <button
+                    type="button"
+                    className={sourceFilter === row.source ? "on" : undefined}
+                    onClick={() => {
+                      setSourceFilter(row.source);
+                      if (row.source === "unstop") {
+                        setFlags((current) => new Set(current).add("unstop"));
+                      }
+                    }}
+                  >
+                    {row.label}
+                    <span className="count">({row.count})</span>
+                  </button>
+                </li>
+              ))}
+          </ul>
+        </aside>
       </main>
 
       <AlertsSection
@@ -598,7 +693,8 @@ export default function HomePage() {
       <SubmitCompetition />
 
       <div className="wrap colophon">
-        FindHackathons · Devfolio, Unstop, Kaggle, Devpost, and community submissions
+        FindHackathons · Devpost, Kaggle, Devfolio by default · Unstop on request ·
+        add others below
       </div>
     </>
   );
