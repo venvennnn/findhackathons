@@ -1,20 +1,21 @@
 import type { Metadata } from "next";
-import { Bricolage_Grotesque, DM_Mono, Instrument_Sans } from "next/font/google";
+import { IBM_Plex_Mono, Libre_Franklin, Newsreader } from "next/font/google";
 import "./globals.css";
 
-const display = Bricolage_Grotesque({
+const display = Newsreader({
   subsets: ["latin"],
   variable: "--font-display",
-  weight: ["400", "600", "800"],
+  weight: ["400", "500", "600", "700"],
+  style: ["normal", "italic"],
 });
 
-const body = Instrument_Sans({
+const body = Libre_Franklin({
   subsets: ["latin"],
   variable: "--font-body",
   weight: ["400", "500", "600"],
 });
 
-const mono = DM_Mono({
+const mono = IBM_Plex_Mono({
   subsets: ["latin"],
   variable: "--font-mono",
   weight: ["400", "500"],
@@ -23,7 +24,7 @@ const mono = DM_Mono({
 export const metadata: Metadata = {
   title: "FindHackathons — hackathons you can finish",
   description:
-    "Every listing shows how much runway is left, how much work it takes, and whether you're eligible — before you click through.",
+    "Active hackathons and data science competitions with skill level, eligibility, and starter-code signals.",
   metadataBase: new URL("https://findhackathons.com"),
 };
 
@@ -34,7 +35,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${display.variable} ${body.variable} ${mono.variable} antialiased`}>
+      <body className={`${display.variable} ${body.variable} ${mono.variable}`}>
         {children}
       </body>
     </html>
