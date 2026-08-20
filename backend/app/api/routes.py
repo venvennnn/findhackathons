@@ -189,66 +189,90 @@ def submit_listing(
     ]
     raw_snippet = " | ".join(bit for bit in snippet_bits if bit)
 
-    if existing:
-        existing.title = payload.title
-        existing.organizer = organizer
-        existing.source = SourcePlatform.manual
-        existing.deadline_utc = payload.deadline_utc
-        existing.domains = domains
-        existing.skill_floor = payload.skill_floor
-        existing.skill_floor_reasoning = (
-            existing.skill_floor_reasoning
-            or "Manually submitted / corrected via the website."
+    try:
+        if existing:
+            existing.title = payload.title
+            existing.organizer = organizer
+            existing.source = SourcePlatform.manual
+            existing.deadline_utc = payload.deadline_utc
+            existing.domains = domains
+            existing.skill_floor = payload.skill_floor
+            existing.skill_floor_reasoning = (
+                existing.skill_floor_reasoning
+                or "Manually submitted / corrected via the website."
+            )
+            existing.students_only = payload.students_only
+            existing.team_size_max = payload.team_size_max
+            existing.requires_travel = payload.requires_travel
+            existing.prize_pool_usd = payload.prize_pool_usd
+            existing.has_starter_code = payload.has_starter_code
+            existing.confidence = ConfidenceLevel.medium
+            existing.raw_snippet = raw_snippet
+            existing.team_channel_url = existing.team_channel_url or discord_team_url()
+            existing.is_active = True
+            existing.updated_at = now
+            existing.last_seen_at = now
+            session.add(existing)
+            session.commit()
+            return ManualListingSubmitResponse(
+                ok=True,
+                message="Updated that competition — thanks for the correction.",
+                id=existing.id,
+                status="updated",
+            )
+
+        listing = Listing(
+            title=payload.title,
+            organizer=organizer,
+            url=url,
+            source=SourcePlatform.manual,
+            deadline_utc=payload.deadline_utc,
+            domains=domains,
+            skill_floor=payload.skill_floor,
+            skill_floor_reasoning="Manually submitted via the website.",
+            students_only=payload.students_only,
+            country_restrictions=[],
+            team_size_max=payload.team_size_max,
+            requires_travel=payload.requires_travel,
+            prize_pool_usd=payload.prize_pool_usd,
+            has_starter_code=payload.has_starter_code,
+            confidence=ConfidenceLevel.medium,
+            raw_snippet=raw_snippet,
+            team_channel_url=discord_team_url(),
+            is_active=True,
         )
-        existing.students_only = payload.students_only
-        existing.team_size_max = payload.team_size_max
-        existing.requires_travel = payload.requires_travel
-        existing.prize_pool_usd = payload.prize_pool_usd
-        existing.has_starter_code = payload.has_starter_code
-        existing.confidence = ConfidenceLevel.medium
-        existing.raw_snippet = raw_snippet
-        existing.team_channel_url = existing.team_channel_url or discord_team_url()
-        existing.is_active = True
-        existing.updated_at = now
-        existing.last_seen_at = now
-        session.add(existing)
+        session.add(listing)
         session.commit()
+        session.refresh(listing)
         return ManualListingSubmitResponse(
             ok=True,
-            message="Updated that competition — thanks for the correction.",
-            id=existing.id,
-            status="updated",
+            message="Added — it should show up in the feed shortly.",
+            id=listing.id,
+            status="created",
         )
-
-    listing = Listing(
-        title=payload.title,
-        organizer=organizer,
-        url=url,
-        source=SourcePlatform.manual,
-        deadline_utc=payload.deadline_utc,
-        domains=domains,
-        skill_floor=payload.skill_floor,
-        skill_floor_reasoning="Manually submitted via the website.",
-        students_only=payload.students_only,
-        country_restrictions=[],
-        team_size_max=payload.team_size_max,
-        requires_travel=payload.requires_travel,
-        prize_pool_usd=payload.prize_pool_usd,
-        has_starter_code=payload.has_starter_code,
-        confidence=ConfidenceLevel.medium,
-        raw_snippet=raw_snippet,
-        team_channel_url=discord_team_url(),
-        is_active=True,
-    )
-    session.add(listing)
-    session.commit()
-    session.refresh(listing)
-    return ManualListingSubmitResponse(
-        ok=True,
-        message="Added — it should show up in the feed shortly.",
-        id=listing.id,
-        status="created",
-    )
+    except Exception as exc:  # noqa: BLE001
+        session.rollback()
+        detail = str(exc)
+        # Common production failure before the VARCHAR migration: PG enum lacks 'manual'.
+        if "sourceplatform" in detail.lower() or "invalid input value for enum" in detail.lower():
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "Database needs a quick migration for manual submissions "
+                    "(source enum). Redeploy/restart the API so schema patch runs, "
+                    "then try again."
+                ),
+            ) from exc
+        if "team_channel_url" in detail.lower() and "does not exist" in detail.lower():
+            raise HTTPException(
+                status_code=503,
+                detail="Database is missing team_channel_url — restart the API to migrate, then retry.",
+            ) from exc
+        print(f"[submit] failed: {exc}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Could not save competition: {detail[:240]}",
+        ) from exc
 
 
 @router.get("/listings/{listing_id}", response_model=ListingRead)

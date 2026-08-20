@@ -33,10 +33,55 @@ _COLUMN_MIGRATIONS = (
 )
 
 
+def _migrate_postgres_source_column(conn) -> None:
+    """Convert listings.source from native ENUM to VARCHAR so new values (manual) work."""
+    row = conn.execute(
+        text(
+            """
+            SELECT data_type, udt_name
+            FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND table_name = 'listings'
+              AND column_name = 'source'
+            """
+        )
+    ).first()
+    if not row:
+        return
+    data_type, udt_name = row[0], row[1]
+    if data_type == "USER-DEFINED" or (udt_name and udt_name.lower() == "sourceplatform"):
+        conn.execute(
+            text(
+                "ALTER TABLE listings ALTER COLUMN source TYPE VARCHAR(32) "
+                "USING source::text"
+            )
+        )
+        print("[db] migrated listings.source from enum to VARCHAR(32)")
+        # Best-effort cleanup of the old enum type if nothing else uses it.
+        conn.execute(text("DROP TYPE IF EXISTS sourceplatform"))
+        print("[db] dropped unused sourceplatform enum type")
+
+
+def _ensure_postgres_enum_value(conn, type_name: str, value: str) -> None:
+    """Fallback if source is still a native enum: add the missing label."""
+    exists = conn.execute(
+        text("SELECT 1 FROM pg_type WHERE typname = :name"),
+        {"name": type_name},
+    ).first()
+    if not exists:
+        return
+    conn.execute(
+        text(f"ALTER TYPE {type_name} ADD VALUE IF NOT EXISTS '{value}'")
+    )
+    print(f"[db] ensured enum {type_name} has value '{value}'")
+
+
 def ensure_schema() -> None:
-    """create_all for new tables + additive column patches for existing DBs."""
+    """create_all for new tables + additive patches for existing DBs."""
     SQLModel.metadata.create_all(engine)
     inspector = inspect(engine)
+    dialect = engine.dialect.name
+
     with engine.begin() as conn:
         for table, column, ddl in _COLUMN_MIGRATIONS:
             if table not in inspector.get_table_names():
@@ -46,6 +91,16 @@ def ensure_schema() -> None:
                 continue
             conn.execute(text(ddl))
             print(f"[db] added column {table}.{column}")
+
+        if dialect == "postgresql":
+            try:
+                _migrate_postgres_source_column(conn)
+            except Exception as exc:  # noqa: BLE001
+                print(f"[db] source column migrate skipped/failed: {exc}")
+                try:
+                    _ensure_postgres_enum_value(conn, "sourceplatform", "manual")
+                except Exception as enum_exc:  # noqa: BLE001
+                    print(f"[db] enum add-value failed: {enum_exc}")
 
 
 def init_db() -> None:

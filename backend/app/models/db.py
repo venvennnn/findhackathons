@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from typing import List, Optional
 from uuid import uuid4
 
-from sqlalchemy import Column, JSON, UniqueConstraint
+from sqlalchemy import Column, JSON, String, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 from app.models.enums import ConfidenceLevel, SkillLevel, SourcePlatform
@@ -23,7 +23,11 @@ class Listing(SQLModel, table=True):
     title: str = Field(index=True)
     organizer: str
     url: str = Field(unique=True, index=True)
-    source: SourcePlatform = Field(default=SourcePlatform.other, index=True)
+    # Store as VARCHAR — Postgres native ENUMs break when we add values like "manual".
+    source: SourcePlatform = Field(
+        default=SourcePlatform.other,
+        sa_column=Column(String(32), nullable=False, index=True),
+    )
     deadline_utc: Optional[datetime] = Field(default=None, index=True)
     domains: List[str] = Field(default_factory=list, sa_column=Column(JSON))
     skill_floor: SkillLevel = Field(default=SkillLevel.beginner, index=True)
