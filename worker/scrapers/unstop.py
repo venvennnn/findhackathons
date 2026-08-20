@@ -45,8 +45,8 @@ def fetch_unstop(limit: int = 20) -> List[RawListing]:
     return rows
 
 
-async def fetch_unstop_playwright(limit: int = 20) -> List[RawListing]:
-    """API path is preferred; Playwright kept as a no-op alias for Modal compatibility."""
+def fetch_unstop_playwright(limit: int = 20) -> List[RawListing]:
+    """Sync alias kept for Modal compatibility — API path is preferred."""
     return fetch_unstop(limit=limit)
 
 

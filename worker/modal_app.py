@@ -61,16 +61,6 @@ def _run_pipeline(limit_per_source: int = 20, kaggle_limit: int = 200) -> Dict[s
         ("unstop", fetch_unstop(limit=20)),  # product: only nearest ~20
     ]
 
-    # Unstop API path is preferred; playwright alias just reuses it.
-    try:
-        from scrapers.unstop import fetch_unstop_playwright
-
-        unstop_pw = fetch_unstop_playwright(limit=20)
-        if unstop_pw:
-            raw_batches = [b for b in raw_batches if b[0] != "unstop"] + [("unstop", unstop_pw)]
-    except Exception as exc:  # noqa: BLE001
-        print(f"[pipeline] unstop refresh skipped: {exc}")
-
     stats = {
         "fetched": 0,
         "enriched": 0,
