@@ -37,6 +37,12 @@ def listing_to_read(
     is_expanded_match: bool = False,
     teammate_interest_count: Optional[int] = None,
 ) -> ListingRead:
+    community = bool(getattr(listing, "community_submitted", False))
+    if not community and listing.raw_snippet:
+        # Back-compat for rows submitted before the community_submitted column.
+        snippet = listing.raw_snippet.lower()
+        community = snippet.startswith("manual submission") or "submitter:" in snippet
+
     return ListingRead(
         id=listing.id,
         title=listing.title,
@@ -60,6 +66,7 @@ def listing_to_read(
         # Prefer listing-specific channel; fall back to shared FindHackathons Discord.
         team_channel_url=listing.team_channel_url or discord_team_url(),
         teammate_interest_count=teammate_interest_count,
+        community_submitted=community,
     )
 
 

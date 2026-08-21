@@ -21,6 +21,11 @@ engine = create_engine(
 _COLUMN_MIGRATIONS = (
     ("listings", "team_channel_url", "ALTER TABLE listings ADD COLUMN team_channel_url VARCHAR"),
     (
+        "listings",
+        "community_submitted",
+        "ALTER TABLE listings ADD COLUMN community_submitted BOOLEAN DEFAULT FALSE",
+    ),
+    (
         "user_profiles",
         "looking_for_team",
         "ALTER TABLE user_profiles ADD COLUMN looking_for_team BOOLEAN DEFAULT FALSE",

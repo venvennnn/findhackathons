@@ -73,7 +73,8 @@ export function SubmitCompetition() {
           <h2>Missing a competition?</h2>
           <p>
             Add one we don&apos;t scrape yet, or correct a listing that looks
-            wrong. It goes live in the feed right away.
+            wrong. It goes live for everyone right away, under its real site
+            (Kaggle, Devpost, …), marked as added by someone.
           </p>
         </div>
         {status === "done" ? (

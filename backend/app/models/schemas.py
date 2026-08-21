@@ -70,6 +70,8 @@ class ListingRead(BaseModel):
     team_channel_url: Optional[str] = None
     # Ambient demand signal — only populated once count >= threshold. No names.
     teammate_interest_count: Optional[int] = None
+    # True when someone added/corrected this listing via the public form.
+    community_submitted: bool = False
 
 
 class ProfileCreate(BaseModel):

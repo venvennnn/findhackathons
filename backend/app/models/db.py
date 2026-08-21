@@ -43,6 +43,8 @@ class Listing(SQLModel, table=True):
     raw_snippet: Optional[str] = None
     # Outbound link to the event's own team-finding channel (Discord, Devpost, etc.)
     team_channel_url: Optional[str] = None
+    # True when a person submitted/corrected this listing via the website.
+    community_submitted: bool = False
     is_active: bool = Field(default=True, index=True)
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
