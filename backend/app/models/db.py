@@ -81,6 +81,8 @@ class AlertSubscription(SQLModel, table=True):
     email: str = Field(index=True)
     profile_id: Optional[str] = Field(default=None, foreign_key="user_profiles.id", index=True)
     is_active: bool = Field(default=True, index=True)
+    # Opaque token for one-click unsubscribe links in digests.
+    unsubscribe_token: str = Field(default_factory=new_id, index=True, unique=True)
     created_at: datetime = Field(default_factory=utcnow)
     last_sent_at: Optional[datetime] = None
 

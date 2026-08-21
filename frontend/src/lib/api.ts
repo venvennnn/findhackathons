@@ -151,6 +151,13 @@ export function subscribeAlerts(payload: {
   );
 }
 
+export function unsubscribeAlerts(token: string) {
+  return request<{ ok: boolean; message: string }>("/api/alerts/unsubscribe", {
+    method: "POST",
+    body: JSON.stringify({ token }),
+  });
+}
+
 export function expressListingInterest(
   listingId: string,
   payload: { email: string; team_needs?: TeamRole[]; profile_id?: string },

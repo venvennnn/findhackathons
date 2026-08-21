@@ -99,7 +99,13 @@ export function AlertsSection({
               {message}
             </p>
           ) : (
-            <p className="fineprint">No spam · unsubscribe in one click</p>
+            <p className="fineprint">
+              No spam ·{" "}
+              <a className="tlink" href="/unsubscribe">
+                unsubscribe
+              </a>{" "}
+              in one click from any email
+            </p>
           )}
         </div>
       </div>

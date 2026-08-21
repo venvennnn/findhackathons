@@ -38,6 +38,13 @@ class Settings(BaseSettings):
     discord_team_url: str = (
         "https://discord.com/channels/1535536397463724062/1535536398093000708"
     )
+    # Weekly digest email (Resend). Leave resend_api_key empty to disable sends.
+    resend_api_key: str = ""
+    email_from: str = "FindHackathons <onboarding@resend.dev>"
+    # Public site URL used in unsubscribe links (Vercel / custom domain).
+    app_base_url: str = "https://findhackathons-six.vercel.app"
+    # Max listings per Friday digest email.
+    alerts_digest_limit: int = 8
 
     @property
     def sqlalchemy_database_url(self) -> str:
