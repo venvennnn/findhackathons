@@ -99,7 +99,7 @@ export default function HomePage() {
       setError("");
       try {
         const data = await getListings({
-          limit: "100",
+          limit: "1000",
           has_prize: prizeOnly ? "true" : "false",
           sources: feedKey,
           max_deadline_days: farHorizon ? "0" : "90",
