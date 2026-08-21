@@ -22,14 +22,13 @@ import {
   daysUntil,
   domainLabel,
   effortEstimate,
-  finishScore,
   formatPrize,
   interestCount,
   isSoloFriendly,
   openInIndia,
 } from "@/lib/utils";
 
-type SortKey = "fit" | "finish" | "soon" | "prize" | "interest";
+type SortKey = "fit" | "soon" | "launch" | "prize" | "interest";
 
 type EnrichedListing = Listing & {
   daysLeft: number | null;
@@ -168,9 +167,18 @@ export default function HomePage() {
           (a.daysLeft ?? 999) - (b.daysLeft ?? 999)
         );
       }
-      if (sort === "soon") return (a.daysLeft ?? 999) - (b.daysLeft ?? 999);
-      if (sort === "prize") return (b.prize_pool_usd || 0) - (a.prize_pool_usd || 0);
-      return finishScore(b) - finishScore(a);
+      if (sort === "soon") {
+        return (a.daysLeft ?? 999) - (b.daysLeft ?? 999);
+      }
+      if (sort === "launch") {
+        const aLaunch = a.created_at ? Date.parse(a.created_at) : 0;
+        const bLaunch = b.created_at ? Date.parse(b.created_at) : 0;
+        return bLaunch - aLaunch || (a.daysLeft ?? 999) - (b.daysLeft ?? 999);
+      }
+      if (sort === "prize") {
+        return (b.prize_pool_usd || 0) - (a.prize_pool_usd || 0);
+      }
+      return interestCount(b) - interestCount(a);
     });
   }, [filtered, sort, matchOn]);
 
@@ -520,25 +528,53 @@ export default function HomePage() {
           >
             Farther than 90 days
           </button>
+          <span className="divider" />
+          <button
+            type="button"
+            className="filter"
+            aria-pressed={sort === "soon"}
+            onClick={() => setSort("soon")}
+          >
+            Time remaining
+          </button>
+          <button
+            type="button"
+            className="filter"
+            aria-pressed={sort === "launch"}
+            onClick={() => setSort("launch")}
+          >
+            Launch date
+          </button>
+          <button
+            type="button"
+            className="filter"
+            aria-pressed={sort === "prize"}
+            onClick={() => setSort("prize")}
+          >
+            Prize money
+          </button>
+          <button
+            type="button"
+            className="filter"
+            aria-pressed={sort === "interest"}
+            onClick={() => setSort("interest")}
+          >
+            Interested
+          </button>
+          {matchOn && (
+            <button
+              type="button"
+              className="filter"
+              aria-pressed={sort === "fit"}
+              onClick={() => setSort("fit")}
+            >
+              Best match
+            </button>
+          )}
           <div className="right">
             <span className="count">
               {loading ? "…" : `${sorted.length} of ${stats.open}`}
             </span>
-            <label className="sr" htmlFor="sort">
-              Sort
-            </label>
-            <select
-              className="sort"
-              id="sort"
-              value={sort}
-              onChange={(e) => setSort(e.target.value as SortKey)}
-            >
-              {matchOn && <option value="fit">Best match for you</option>}
-              <option value="interest">Most looking for teammates</option>
-              <option value="finish">Best chance of finishing</option>
-              <option value="soon">Closing soonest</option>
-              <option value="prize">Biggest prize</option>
-            </select>
           </div>
         </div>
       </div>
