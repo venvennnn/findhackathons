@@ -8,11 +8,14 @@ Schedule: every 6 hours.
 
 from __future__ import annotations
 
-import asyncio
 import os
-from typing import Dict, List
+from pathlib import Path
+from typing import Dict
 
 import modal
+
+# Run from the worker/ directory so these modules resolve for add_local_python_source.
+_WORKER_DIR = Path(__file__).resolve().parent
 
 image = (
     modal.Image.debian_slim(python_version="3.11")
@@ -28,6 +31,8 @@ image = (
         "kaggle>=1.6.17",
     )
     .run_commands("playwright install chromium --with-deps")
+    # Ship scraper/enrichment modules into the container (modal_app.py alone is not enough).
+    .add_local_python_source("enrichment", "db_writer", "schemas", "scrapers")
 )
 
 app = modal.App("findhackathons-ingestion", image=image)
@@ -38,11 +43,13 @@ secrets = modal.Secret.from_name("findhackathons-secrets")
 def _run_pipeline(limit_per_source: int = 20, kaggle_limit: int = 200) -> Dict[str, int]:
     # Local imports so Modal serializes cleanly
     import sys
-    from pathlib import Path
 
     worker_dir = Path(__file__).resolve().parent
     if str(worker_dir) not in sys.path:
         sys.path.insert(0, str(worker_dir))
+    # Also ensure /root (Modal default mount) is on path when modules are added there.
+    if "/root" not in sys.path:
+        sys.path.insert(0, "/root")
 
     api_url = (os.getenv("BACKEND_API_URL") or "").rstrip("/")
     has_token = bool((os.getenv("INGEST_TOKEN") or "").strip())
@@ -143,11 +150,12 @@ def ingest_cron():
 def ingest_kaggle_only():
     """One-shot Kaggle sync for manual runs: modal run worker/modal_app.py::ingest_kaggle_only"""
     import sys
-    from pathlib import Path
 
     worker_dir = Path(__file__).resolve().parent
     if str(worker_dir) not in sys.path:
         sys.path.insert(0, str(worker_dir))
+    if "/root" not in sys.path:
+        sys.path.insert(0, "/root")
 
     from enrichment import content_hash, enrich_or_none
     from db_writer import upsert_listing
@@ -183,7 +191,8 @@ def ingest_kaggle_only():
 def main():
     """Run once on Modal (not locally) so secrets + Railway ingest apply.
 
-    Usage: modal run modal_app.py
+    Usage (from worker/):
+      py -m modal run modal_app.py
     """
     # IMPORTANT: call .remote() so findhackathons-secrets are injected and
     # upserts go to BACKEND_API_URL (Railway). A bare _run_pipeline() call
