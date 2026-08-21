@@ -1,4 +1,8 @@
-"""LLM enrichment via instructor + OpenAI, plus deterministic Kaggle mapping."""
+"""LLM enrichment via instructor + Claude (Anthropic), plus deterministic mapping.
+
+Auth still uses the env var name OPENAI_API_KEY (holds an Anthropic API key).
+Optional OPENAI_MODEL overrides the Claude model id.
+"""
 
 from __future__ import annotations
 
@@ -26,28 +30,36 @@ Assign skill_floor using these proxies:
 Use confidence=low when guessing. Prefer ISO country codes for eligibility.
 """.strip()
 
+# Env var names stay OPENAI_* for compatibility; values are Anthropic/Claude.
+DEFAULT_CLAUDE_MODEL = "claude-haiku-4-5-20251001"
+
 
 def content_hash(raw: str) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
 def enrich_listing(raw_text: str, *, source_url: str, organizer_hint: str = "") -> HackathonListing:
-    """Enrich unstructured listing text into a strict Pydantic model."""
+    """Enrich unstructured listing text into a strict Pydantic model via Claude."""
     api_key = os.getenv("OPENAI_API_KEY", "")
     if not api_key:
-        raise RuntimeError("OPENAI_API_KEY is required for enrichment")
+        raise RuntimeError(
+            "OPENAI_API_KEY is required for enrichment "
+            "(put your Anthropic/Claude API key in this env var)"
+        )
 
     import instructor
-    from openai import OpenAI
+    from anthropic import Anthropic
 
-    client = instructor.from_openai(OpenAI(api_key=api_key))
-    model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+    client = instructor.from_anthropic(Anthropic(api_key=api_key))
+    model = os.getenv("OPENAI_MODEL", DEFAULT_CLAUDE_MODEL)
 
-    return client.chat.completions.create(
+    return client.messages.create(
         model=model,
+        max_tokens=2048,
+        max_retries=2,
         response_model=HackathonListing,
+        system=ENRICHMENT_SYSTEM_PROMPT,
         messages=[
-            {"role": "system", "content": ENRICHMENT_SYSTEM_PROMPT},
             {
                 "role": "user",
                 "content": (
@@ -57,7 +69,6 @@ def enrich_listing(raw_text: str, *, source_url: str, organizer_hint: str = "") 
                 ),
             },
         ],
-        max_retries=2,
     )
 
 

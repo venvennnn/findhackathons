@@ -43,8 +43,8 @@ This monorepo includes a **root `Dockerfile` + `railway.toml`**, so Railway can 
 | `DATABASE_URL` | Supabase URI from step 1 (**append `?sslmode=require` if missing**) | Yes |
 | `CORS_ORIGINS` | `https://findhackathons.com,https://your-app.vercel.app` | Yes |
 | `INGEST_TOKEN` | long random string | Yes (for worker) |
-| `OPENAI_API_KEY` | `sk-...` | No (heuristic ranking works without it) |
-| `OPENAI_MODEL` | `gpt-4o-mini` | No |
+| `OPENAI_API_KEY` | Anthropic/Claude key (`sk-ant-…`) — env name kept as `OPENAI_API_KEY` | No (heuristic ranking works without it) |
+| `OPENAI_MODEL` | `claude-haiku-4-5-20251001` | No |
 | `ENVIRONMENT` | `production` | No |
 
 5. **Redeploy** (Deployments → Redeploy), then open:
@@ -104,7 +104,7 @@ pip install modal
 modal setup
 
 modal secret create findhackathons-secrets \
-  OPENAI_API_KEY=sk-... \
+  OPENAI_API_KEY=sk-ant-... \
   BACKEND_API_URL=https://<your-railway-domain> \
   INGEST_TOKEN=<same-as-railway>
 
@@ -114,7 +114,8 @@ modal run modal_app.py      # one-shot test
 
 Secrets expected by `worker/modal_app.py`:
 
-- `OPENAI_API_KEY` — required for LLM enrichment
+- `OPENAI_API_KEY` — Anthropic/Claude key for LLM enrichment (env name unchanged)
+- `OPENAI_MODEL` — optional Claude model id (default Haiku)
 - `BACKEND_API_URL` — Railway API base URL
 - `INGEST_TOKEN` — must match Railway
 - `KAGGLE_USERNAME` / `KAGGLE_KEY` — **required for Kaggle** (featured + community).
