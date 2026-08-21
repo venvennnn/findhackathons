@@ -44,6 +44,20 @@ def _run_pipeline(limit_per_source: int = 20, kaggle_limit: int = 200) -> Dict[s
     if str(worker_dir) not in sys.path:
         sys.path.insert(0, str(worker_dir))
 
+    api_url = (os.getenv("BACKEND_API_URL") or "").rstrip("/")
+    has_token = bool((os.getenv("INGEST_TOKEN") or "").strip())
+    print(f"[pipeline] BACKEND_API_URL={api_url or '(missing)'} INGEST_TOKEN_set={has_token}")
+    if not api_url:
+        raise RuntimeError(
+            "BACKEND_API_URL is not set in Modal secret findhackathons-secrets. "
+            "Set it to https://findhackathons-production.up.railway.app"
+        )
+    if not has_token:
+        raise RuntimeError(
+            "INGEST_TOKEN is not set in Modal secret findhackathons-secrets. "
+            "It must match Railway Variables → INGEST_TOKEN exactly."
+        )
+
     from enrichment import content_hash, enrich_or_none
     from db_writer import deactivate_stale, upsert_listing
     from scrapers.devfolio import fetch_devfolio
@@ -60,16 +74,6 @@ def _run_pipeline(limit_per_source: int = 20, kaggle_limit: int = 200) -> Dict[s
         ("devfolio", fetch_devfolio(limit=max(limit_per_source, 60))),
         ("unstop", fetch_unstop(limit=20)),  # product: only nearest ~20
     ]
-
-    # Unstop API path is preferred; playwright alias just reuses it.
-    try:
-        from scrapers.unstop import fetch_unstop_playwright
-
-        unstop_pw = fetch_unstop_playwright(limit=20)
-        if unstop_pw:
-            raw_batches = [b for b in raw_batches if b[0] != "unstop"] + [("unstop", unstop_pw)]
-    except Exception as exc:  # noqa: BLE001
-        print(f"[pipeline] unstop refresh skipped: {exc}")
 
     stats = {
         "fetched": 0,
@@ -88,12 +92,17 @@ def _run_pipeline(limit_per_source: int = 20, kaggle_limit: int = 200) -> Dict[s
             structured = getattr(row, "structured", None)
             if structured:
                 stats["kaggle_structured"] += 1
-            enriched = enrich_or_none(
-                row.raw_text,
-                source_url=row.url,
-                organizer_hint=row.organizer,
-                structured=structured,
-            )
+            try:
+                enriched = enrich_or_none(
+                    row.raw_text,
+                    source_url=row.url,
+                    organizer_hint=row.organizer,
+                    structured=structured,
+                )
+            except Exception as exc:  # noqa: BLE001
+                print(f"[pipeline] enrich failed for {row.url}: {exc}")
+                stats["failed"] += 1
+                continue
             if not enriched:
                 stats["failed"] += 1
                 continue
@@ -101,12 +110,17 @@ def _run_pipeline(limit_per_source: int = 20, kaggle_limit: int = 200) -> Dict[s
             if not enriched.url:
                 enriched.url = row.url
             stats["enriched"] += 1
-            status = upsert_listing(
-                enriched=enriched,
-                source=source,
-                content_hash=digest,
-                raw_snippet=row.raw_text,
-            )
+            try:
+                status = upsert_listing(
+                    enriched=enriched,
+                    source=source,
+                    content_hash=digest,
+                    raw_snippet=row.raw_text,
+                )
+            except Exception as exc:  # noqa: BLE001
+                print(f"[pipeline] ingest failed for {row.url}: {exc}")
+                stats["failed"] += 1
+                continue
             stats[status] = stats.get(status, 0) + 1
 
     stale = deactivate_stale(days=2)
@@ -167,5 +181,11 @@ def ingest_kaggle_only():
 
 @app.local_entrypoint()
 def main():
-    """Run once locally/remotely: modal run worker/modal_app.py"""
-    print(_run_pipeline(limit_per_source=5, kaggle_limit=50))
+    """Run once on Modal (not locally) so secrets + Railway ingest apply.
+
+    Usage: modal run modal_app.py
+    """
+    # IMPORTANT: call .remote() so findhackathons-secrets are injected and
+    # upserts go to BACKEND_API_URL (Railway). A bare _run_pipeline() call
+    # runs on the laptop and falls back to local sqlite.
+    print(ingest_cron.remote())

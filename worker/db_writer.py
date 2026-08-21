@@ -88,6 +88,11 @@ def upsert_listing(
             headers["X-Ingest-Token"] = ingest_token
         with httpx.Client(timeout=30.0) as client:
             response = client.post(f"{api_url}/api/internal/ingest", json=payload, headers=headers)
+            if response.status_code == 401:
+                raise RuntimeError(
+                    "Railway rejected INGEST_TOKEN (401). "
+                    "Modal secret INGEST_TOKEN must exactly match Railway Variables → INGEST_TOKEN."
+                )
             response.raise_for_status()
             return response.json().get("status", "ok")
 
