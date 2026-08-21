@@ -67,6 +67,7 @@ def listing_to_read(
         team_channel_url=listing.team_channel_url or discord_team_url(),
         teammate_interest_count=teammate_interest_count,
         community_submitted=community,
+        created_at=listing.created_at,
     )
 
 
