@@ -4,6 +4,7 @@ PARAMETER NOTES (from live API):
   - group validates strictly: general | community | entered
   - category only for group=general; omit entirely for community
   - Auth: LEGACY username + 32-hex key via basic auth (not KGAT_ tokens)
+  - ref is often a full URL, not a slug
 """
 
 from __future__ import annotations
@@ -21,6 +22,8 @@ from scrapers.base import RawListing
 
 API_BASE = "https://www.kaggle.com/api/v1"
 PAGE_SIZE_HINT = 20
+# Far-future placeholder deadlines crowd latestDeadline pages; skip them.
+ABSURD_DEADLINE_YEAR = 2100
 
 CATEGORY_TO_FLOOR = {
     "gettingstarted": "beginner",
@@ -42,7 +45,7 @@ REWARD_MONEY = re.compile(
 )
 
 
-def fetch_kaggle(limit: int = 500) -> List[RawListing]:
+def fetch_kaggle(limit: int = 800) -> List[RawListing]:
     auth = _auth()
     if not auth:
         print("[kaggle] set KAGGLE_USERNAME + KAGGLE_KEY (legacy API credentials)")
@@ -55,12 +58,14 @@ def fetch_kaggle(limit: int = 500) -> List[RawListing]:
     with httpx.Client(timeout=30.0, auth=auth, headers=headers, follow_redirects=True) as client:
         for category in OFFICIAL_CATEGORIES:
             count = 0
-            for raw in _fetch_raw(client, group="general", category=category):
+            for raw in _fetch_raw(client, group="general", category=category, max_pages=20):
                 item = _normalize(raw, is_community=False)
                 if not item:
                     continue
                 deadline = item.get("_deadline_dt")
                 if deadline and deadline <= now:
+                    continue
+                if deadline and deadline.year >= ABSURD_DEADLINE_YEAR:
                     continue
                 listing = _to_raw(item)
                 rows[listing.url] = listing
@@ -68,26 +73,32 @@ def fetch_kaggle(limit: int = 500) -> List[RawListing]:
             print(f"[kaggle] general/{category}: {count}")
 
         kept = 0
-        for raw in _fetch_raw(client, group="community", category=None):
+        skipped_absurd = 0
+        # More pages: community list is large; skip absurd deadlines so real comps surface.
+        for raw in _fetch_raw(client, group="community", category=None, max_pages=80):
             item = _normalize(raw, is_community=True)
             if not item:
                 continue
             deadline = item.get("_deadline_dt")
-            if deadline and deadline <= now:
+            if deadline is None:
                 continue
-            # Keep every open community comp — feed horizon filtering is UI/API-side.
-            if item.get("_deadline_dt") is None:
+            if deadline <= now:
+                continue
+            if deadline.year >= ABSURD_DEADLINE_YEAR:
+                skipped_absurd += 1
                 continue
             listing = _to_raw(item)
             rows.setdefault(listing.url, listing)
             kept += 1
-        print(f"[kaggle] community: {kept} open kept")
+        print(f"[kaggle] community: {kept} open kept (skipped absurd deadlines: {skipped_absurd})")
 
     listings = list(rows.values())
+    # Prefer cash prizes, then sooner deadlines — keep CUHK-class comps inside the cap.
     listings.sort(
         key=lambda item: (
             0 if (item.structured or {}).get("has_cash_prize") else 1,
             -((item.structured or {}).get("prize_pool_usd") or 0),
+            (item.structured or {}).get("deadline_utc") or "9999",
             item.title.lower(),
         )
     )
@@ -148,13 +159,46 @@ def _parse_dt(raw: Any) -> Optional[datetime]:
     return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
+def competition_slug(ref_or_url: Any) -> str:
+    """Normalize Kaggle ref (slug or full URL) to a competition slug."""
+    text = str(ref_or_url or "").strip()
+    if not text:
+        return ""
+    if "://" in text or text.startswith("//"):
+        text = text.split("://", 1)[-1] if "://" in text else text[2:]
+        parts = [p for p in text.split("/") if p]
+        if "competitions" in parts:
+            idx = parts.index("competitions")
+            if idx + 1 < len(parts):
+                return parts[idx + 1]
+        return parts[-1] if parts else ""
+    return text.strip("/")
+
+
+def competition_url(raw: Dict[str, Any]) -> Optional[str]:
+    """Build a canonical https://www.kaggle.com/competitions/{slug} URL."""
+    explicit = _get(raw, "url")
+    if isinstance(explicit, str) and explicit.strip():
+        url = explicit.strip()
+        if url.startswith("//"):
+            url = "https:" + url
+        slug = competition_slug(url)
+        if slug:
+            return f"https://www.kaggle.com/competitions/{slug}"
+    ref = _get(raw, "ref", "id")
+    slug = competition_slug(ref)
+    if not slug:
+        return None
+    return f"https://www.kaggle.com/competitions/{slug}"
+
+
 def _fetch_raw(
     client: httpx.Client,
     *,
     group: str,
     category: Optional[str],
     max_pages: int = 40,
-    delay: float = 0.4,
+    delay: float = 0.35,
 ) -> Iterator[Dict[str, Any]]:
     for page in range(1, max_pages + 1):
         params: Dict[str, Any] = {"group": group, "sortBy": "latestDeadline", "page": page}
@@ -215,9 +259,9 @@ def _domains(raw: Dict[str, Any]) -> List[str]:
 
 
 def _normalize(raw: Dict[str, Any], *, is_community: bool) -> Optional[Dict[str, Any]]:
-    ref = _get(raw, "ref", "id")
     title = _get(raw, "title")
-    if not ref or not title:
+    url = competition_url(raw)
+    if not title or not url:
         return None
     category = str(_get(raw, "category", default="") or "").lower()
     deadline = _parse_dt(_get(raw, "deadline"))
@@ -236,10 +280,9 @@ def _normalize(raw: Dict[str, Any], *, is_community: bool) -> Optional[Dict[str,
         reasoning = f"Kaggle category={category or 'unknown'} → {floor}."
 
     max_team = _get(raw, "maxTeamSize", "max_team_size")
-    url = _get(raw, "url") or f"https://www.kaggle.com/competitions/{ref}"
     return {
         "title": str(title),
-        "url": str(url),
+        "url": url,
         "organizer": _get(raw, "organizationName", "organization_name") or "Kaggle",
         "source": "kaggle",
         "deadline_utc": deadline.isoformat() if deadline else None,
@@ -262,13 +305,6 @@ def _normalize(raw: Dict[str, Any], *, is_community: bool) -> Optional[Dict[str,
     }
 
 
-def _community_usable(item: Dict[str, Any]) -> Tuple[bool, str]:
-    """Legacy helper — community ingest now keeps all open comps with a deadline."""
-    if item.get("_deadline_dt") is None:
-        return False, "no_deadline"
-    return True, ""
-
-
 def _to_raw(item: Dict[str, Any]) -> RawListing:
     structured = {k: v for k, v in item.items() if not k.startswith("_")}
     raw = (
@@ -287,6 +323,14 @@ def _to_raw(item: Dict[str, Any]) -> RawListing:
         deadline_hint=str(item.get("deadline_utc") or ""),
         structured=structured,
     )
+
+
+def competition_to_raw(raw: Dict[str, Any], *, is_community: bool = False) -> RawListing:
+    """Test/helper wrapper: normalize one API row into a RawListing."""
+    item = _normalize(raw, is_community=is_community)
+    if not item:
+        raise ValueError("Could not normalize competition row")
+    return _to_raw(item)
 
 
 def iter_prize_stats(listings: List[RawListing]) -> Dict[str, int]:

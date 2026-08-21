@@ -150,7 +150,23 @@ so Railway can match subscribers and send via Resend.
 The public feed defaults to cash-prize competitions; Knowledge / no-prize comps
 are ingested but only shown when the user selects “Include no-prize”.
 
-### Teammates + manual listings
+### Broken demo links
+
+Railway deactivates known-bad seed URLs (`devpost.com/software/…`,
+`devfolio.co/hackathons/…`) on API boot. To force a cleanup without redeploy:
+
+```bash
+curl -X POST -H "X-Ingest-Token: $INGEST_TOKEN" \
+  https://YOUR-RAILWAY-URL/api/internal/cleanup-broken-urls
+```
+
+After scraping fixes, re-run Modal so community Kaggle comps (e.g. CUHK-X) ingest:
+
+```bash
+cd worker
+py -m modal deploy modal_app.py
+py -m modal run modal_app.py
+```
 
 Optional env on Railway:
 

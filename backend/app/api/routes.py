@@ -693,6 +693,19 @@ def teammate_demand_dashboard(
     return build_demand_dashboard(session)
 
 
+@router.post("/internal/cleanup-broken-urls")
+def cleanup_broken_urls(
+    session: Session = Depends(get_session),
+    x_ingest_token: Optional[str] = Header(default=None),
+) -> dict:
+    """Deactivate known-bad seed /software/ and /hackathons/ demo URLs."""
+    _require_ingest_token(x_ingest_token)
+    from app.services.cleanup import deactivate_broken_demo_listings
+
+    deactivated = deactivate_broken_demo_listings(session)
+    return {"ok": True, "deactivated": len(deactivated), "urls": deactivated}
+
+
 @router.post("/alerts/subscribe", response_model=AlertSubscribeResponse)
 def subscribe_alerts(
     payload: AlertSubscribe,

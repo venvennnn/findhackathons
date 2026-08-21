@@ -154,11 +154,9 @@ def _fetch_raw(status: str = "open", max_pages: int = 40, delay: float = 0.6) ->
 
 def _normalize(raw: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     title = _strip_html(_get(raw, "title"))
-    url = _get(raw, "url")
+    url = _normalize_devpost_url(_get(raw, "url"))
     if not title or not url:
         return None
-    if isinstance(url, str) and url.startswith("//"):
-        url = "https:" + url
 
     _start, end = parse_dates(_get(raw, "submission_period_dates"))
     prize_text, prize_value = parse_prize(_get(raw, "prize_amount"))
@@ -194,6 +192,28 @@ def _normalize(raw: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         "skill_floor": floor,
         "students_only": students_only,
     }
+
+
+def _normalize_devpost_url(raw: Any) -> Optional[str]:
+    """Keep subdomain.devpost.com hackathon URLs; drop project /software/ links."""
+    if not isinstance(raw, str):
+        return None
+    url = raw.strip()
+    if not url:
+        return None
+    if url.startswith("//"):
+        url = "https:" + url
+    if url.startswith("/"):
+        url = "https://devpost.com" + url
+    if not url.startswith("http://") and not url.startswith("https://"):
+        url = "https://" + url.lstrip("/")
+    lower = url.lower()
+    # Project gallery pages are not hackathons.
+    if "/software/" in lower:
+        return None
+    if "devpost.com/hackathons" in lower:
+        return None
+    return url
 
 
 def _looks_students_only(title: str, themes: List[str], location: Optional[str]) -> bool:

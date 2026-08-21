@@ -7,6 +7,7 @@ from sqlmodel import Session
 from app.api.routes import router
 from app.core.config import get_settings
 from app.core.database import engine, init_db_with_retry
+from app.services.cleanup import deactivate_broken_demo_listings
 from app.services.seed import seed_if_empty
 
 
@@ -20,6 +21,9 @@ async def lifespan(_: FastAPI):
             created = seed_if_empty(session)
             if created:
                 print(f"[db] seeded {created} demo listings")
+            cleaned = deactivate_broken_demo_listings(session)
+            if cleaned:
+                print(f"[db] deactivated {len(cleaned)} broken demo listings")
     except Exception as exc:  # noqa: BLE001
         # Still start the HTTP server so /api/health can report the error.
         print(f"[db] startup warning: {exc}")
