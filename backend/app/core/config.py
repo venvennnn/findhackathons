@@ -32,8 +32,8 @@ class Settings(BaseSettings):
     app_name: str = "FindHackathons API"
     app_version: str = "0.1.0"
     ingest_token: str = ""
-    # Ambient teammate count stays private until a listing hits this many signals.
-    teammate_interest_threshold: int = 8
+    # Ambient teammate count appears on cards once this many people signal interest.
+    teammate_interest_threshold: int = 1
     # Shared Discord channel where people introduce themselves / find teammates.
     discord_team_url: str = (
         "https://discord.com/channels/1535536397463724062/1535536398093000708"

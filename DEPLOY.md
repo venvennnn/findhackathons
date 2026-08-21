@@ -156,7 +156,7 @@ Optional env on Railway:
 
 - `DISCORD_TEAM_URL` — Discord channel for teammate intros (default is the
   FindHackathons channel)
-- `TEAMMATE_INTEREST_THRESHOLD=8` — optional ambient count threshold
+- `TEAMMATE_INTEREST_THRESHOLD=1` — show “N looking” on cards from the first signal
 
 Public forms (no auth):
 

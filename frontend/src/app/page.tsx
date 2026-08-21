@@ -3,13 +3,10 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AlertsSection } from "@/components/AlertsSection";
-import { DeadlineHorizon } from "@/components/DeadlineHorizon";
 import { SubmitCompetition } from "@/components/SubmitCompetition";
 import { TeammateSignal } from "@/components/TeammateSignal";
 import {
   DEFAULT_FEED_SOURCES,
-  DOMAIN_OPTIONS,
-  DomainCategory,
   Listing,
   MATCH_EXAMPLES,
   SkillLevel,
@@ -24,14 +21,15 @@ import {
 import {
   daysUntil,
   domainLabel,
+  effortEstimate,
   finishScore,
   formatPrize,
+  interestCount,
+  isSoloFriendly,
   openInIndia,
-  runwaySpent,
-  urgency,
 } from "@/lib/utils";
 
-type SortKey = "fit" | "finish" | "soon" | "prize";
+type SortKey = "fit" | "finish" | "soon" | "prize" | "interest";
 
 type EnrichedListing = Listing & {
   daysLeft: number | null;
@@ -50,17 +48,11 @@ export default function HomePage() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [query, setQuery] = useState("");
-  const [level, setLevel] = useState<SkillLevel | "all">("all");
-  const [domains, setDomains] = useState<Set<DomainCategory>>(new Set());
+  const [levels, setLevels] = useState<Set<SkillLevel>>(new Set());
   const [flags, setFlags] = useState<
-    Set<"starter" | "india" | "noPrize" | "unstop" | "students" | "farHorizon">
-  >(new Set());
-  const [sort, setSort] = useState<SortKey>("prize");
-  const [sourceRows, setSourceRows] = useState<SourceCount[]>([]);
-  const [sourceFilter, setSourceFilter] = useState<SourcePlatform | "default">(
-    "default",
-  );
+    Set<"solo" | "starter" | "india" | "prize" | "unstop" | "students" | "farHorizon">
+  >(new Set(["prize"]));
+  const [sort, setSort] = useState<SortKey>("interest");
 
   const [matchText, setMatchText] = useState("");
   const [matching, setMatching] = useState(false);
@@ -71,19 +63,23 @@ export default function HomePage() {
     Record<string, { fit: number; reason: string }>
   >({});
   const [matchSkill, setMatchSkill] = useState<SkillLevel>("beginner");
-  const [matchDomains, setMatchDomains] = useState<DomainCategory[]>([]);
+  const [matchDomains, setMatchDomains] = useState<
+    import("@/lib/api").DomainCategory[]
+  >([]);
+  const [sourceRows, setSourceRows] = useState<SourceCount[]>([]);
 
-  const includeNoPrize = flags.has("noPrize");
   const includeUnstop = flags.has("unstop");
   const studentsOnly = flags.has("students");
   const farHorizon = flags.has("farHorizon");
+  const prizeOnly = flags.has("prize");
 
   const feedSources = useMemo((): SourcePlatform[] => {
-    if (sourceFilter !== "default") return [sourceFilter];
     const base = [...DEFAULT_FEED_SOURCES];
     if (includeUnstop && !base.includes("unstop")) base.push("unstop");
     return base;
-  }, [sourceFilter, includeUnstop]);
+  }, [includeUnstop]);
+
+  const feedKey = sourcesParam(feedSources);
 
   useEffect(() => {
     let cancelled = false;
@@ -91,15 +87,11 @@ export default function HomePage() {
       .then((data) => {
         if (!cancelled) setSourceRows(data.sources);
       })
-      .catch(() => {
-        /* sidebar is non-critical */
-      });
+      .catch(() => undefined);
     return () => {
       cancelled = true;
     };
   }, []);
-
-  const feedKey = sourcesParam(feedSources);
 
   useEffect(() => {
     let cancelled = false;
@@ -107,13 +99,10 @@ export default function HomePage() {
       setLoading(true);
       setError("");
       try {
-        // Default: cash-prize comps from Devpost/Kaggle/Devfolio (+ manual).
-        // Unstop only when opted in or selected in the sidebar.
         const data = await getListings({
           limit: "100",
-          has_prize: includeNoPrize ? "false" : "true",
+          has_prize: prizeOnly ? "true" : "false",
           sources: feedKey,
-          // Default: closing within 90 days. Chip "Farther deadlines" disables.
           max_deadline_days: farHorizon ? "0" : "90",
           ...(studentsOnly ? { students_only: "true" } : {}),
         });
@@ -137,7 +126,7 @@ export default function HomePage() {
     return () => {
       cancelled = true;
     };
-  }, [includeNoPrize, feedKey, farHorizon, studentsOnly]);
+  }, [prizeOnly, feedKey, farHorizon, studentsOnly]);
 
   const enriched: EnrichedListing[] = useMemo(() => {
     return listings.map((listing, index) => {
@@ -151,72 +140,68 @@ export default function HomePage() {
           scored?.reason ||
           listing.fit_reason ||
           listing.skill_floor_reasoning ||
-          "Open listing with structured eligibility metadata.",
+          `${listing.organizer} · ${listing.skill_floor} floor`,
       };
     });
   }, [listings, fitById, matchOn]);
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
     return enriched.filter((listing) => {
       if (listing.daysLeft !== null && listing.daysLeft < 0) return false;
-      if (level !== "all" && listing.skill_floor !== level) return false;
-      if (domains.size && !listing.domains.some((d) => domains.has(d))) return false;
+      if (levels.size && !levels.has(listing.skill_floor)) return false;
+      if (flags.has("solo") && !isSoloFriendly(listing)) return false;
       if (flags.has("starter") && !listing.has_starter_code) return false;
       if (flags.has("india") && !openInIndia(listing)) return false;
-      if (
-        q &&
-        !(
-          listing.title +
-          " " +
-          listing.organizer +
-          " " +
-          listing.domains.map(domainLabel).join(" ")
-        )
-          .toLowerCase()
-          .includes(q)
-      ) {
-        return false;
-      }
       return true;
     });
-  }, [enriched, query, level, domains, flags]);
+  }, [enriched, levels, flags]);
 
   const sorted = useMemo(() => {
     return filtered.slice().sort((a, b) => {
       if (sort === "fit" && matchOn) {
         return (b.fit || 0) - (a.fit || 0) || (a.daysLeft ?? 999) - (b.daysLeft ?? 999);
       }
+      if (sort === "interest") {
+        return (
+          interestCount(b) - interestCount(a) ||
+          (b.prize_pool_usd || 0) - (a.prize_pool_usd || 0) ||
+          (a.daysLeft ?? 999) - (b.daysLeft ?? 999)
+        );
+      }
       if (sort === "soon") return (a.daysLeft ?? 999) - (b.daysLeft ?? 999);
-      if (sort === "prize")
-        return (b.prize_pool_usd || 0) - (a.prize_pool_usd || 0);
+      if (sort === "prize") return (b.prize_pool_usd || 0) - (a.prize_pool_usd || 0);
       return finishScore(b) - finishScore(a);
     });
   }, [filtered, sort, matchOn]);
 
-  const activeFilters =
-    query ||
-    level !== "all" ||
-    domains.size > 0 ||
-    flags.has("starter") ||
-    flags.has("india") ||
-    flags.has("noPrize") ||
-    flags.has("unstop") ||
-    flags.has("students") ||
-    flags.has("farHorizon") ||
-    sourceFilter !== "default";
+  const stats = useMemo(() => {
+    const open = enriched.filter((l) => l.daysLeft === null || l.daysLeft >= 0);
+    return {
+      open: open.length,
+      soon: open.filter((l) => l.daysLeft !== null && l.daysLeft <= 7).length,
+      beginner: open.filter((l) => l.skill_floor === "beginner").length,
+      solo: open.filter((l) => isSoloFriendly(l)).length,
+    };
+  }, [enriched]);
 
-  function toggleDomain(domain: DomainCategory) {
-    setDomains((current) => {
+  const sourceLabel = useMemo(() => {
+    const names = sourceRows
+      .filter((row) => row.in_default_feed && row.count > 0)
+      .map((row) => row.label);
+    return names.length ? names.join(", ") : "Devpost, Kaggle, Devfolio";
+  }, [sourceRows]);
+
+  function toggleLevel(level: SkillLevel) {
+    setLevels((current) => {
       const next = new Set(current);
-      if (next.has(domain)) next.delete(domain);
-      else next.add(domain);
+      if (next.has(level)) next.delete(level);
+      else next.add(level);
       return next;
     });
   }
 
   function toggleFlag(
-    flag: "starter" | "india" | "noPrize" | "unstop" | "students" | "farHorizon",
+    flag: "solo" | "starter" | "india" | "prize" | "unstop" | "students" | "farHorizon",
   ) {
     setFlags((current) => {
       const next = new Set(current);
@@ -227,11 +212,18 @@ export default function HomePage() {
   }
 
   function clearFilters() {
-    setQuery("");
-    setLevel("all");
-    setDomains(new Set());
-    setFlags(new Set());
-    setSourceFilter("default");
+    setLevels(new Set());
+    setFlags(new Set(["prize"]));
+  }
+
+  function bumpInterest(listingId: string, count: number) {
+    setListings((current) =>
+      current.map((item) =>
+        item.id === listingId
+          ? { ...item, teammate_interest_count: count }
+          : item,
+      ),
+    );
   }
 
   async function runMatch() {
@@ -268,7 +260,6 @@ export default function HomePage() {
             "Matches your profile filters.",
         };
       });
-      // Soft-score remaining listings so the full list stays useful
       listings.forEach((listing) => {
         if (next[listing.id]) return;
         let fit = 28;
@@ -285,7 +276,7 @@ export default function HomePage() {
       setMatchOn(true);
       setSort("fit");
       setMatchNote("Ready");
-      document.querySelector(".filters")?.scrollIntoView({ behavior: "smooth" });
+      document.getElementById("listings")?.scrollIntoView({ behavior: "smooth" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Matching failed");
       setMatchNote("Try again");
@@ -300,57 +291,82 @@ export default function HomePage() {
     setFitById({});
     setMatchText("");
     setMatchNote("Two or three sentences works best");
-    setSort("finish");
+    setSort("interest");
   }
 
   const ready = matchText.trim().length >= 15;
+  const strongFits = matchOn
+    ? sorted.filter((item) => (item.fit || 0) >= 60).length
+    : 0;
 
   return (
     <>
-      <header className="topbar">
-        <div className="wrap">
-          <Link className="mark" href="/">
-            Find<span>Hackathons</span>
+      <header>
+        <div className="wrap nav">
+          <Link className="brand" href="/">
+            <span aria-hidden />
+            FindHackathons
           </Link>
-          <nav className="topnav" aria-label="Sections">
-            <a className="tlink" href="#matcher">
-              Match me
-            </a>
-            <a className="tlink" href="#alerts">
-              Weekly alerts
-            </a>
-            <a className="tlink" href="#submit">
-              Add a competition
-            </a>
-          </nav>
+          <div className="links">
+            <a href="#matcher">Match me</a>
+            <a href="#alerts">Friday email</a>
+            <a href="#submit">Add one</a>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => document.getElementById("alert-email")?.focus()}
+            >
+              Get alerts
+            </button>
+          </div>
         </div>
       </header>
 
-      <section className="hero wrap">
-        <p className="eyebrow">
-          Directory · {loading ? "…" : `${listings.length} open now`}
-        </p>
-        <h1>Hackathons you can actually finish.</h1>
-        <p className="lede">
-          Active competitions from Devpost, Kaggle, and Devfolio — skill floor,
-          eligibility, runway, and prize. Unstop is optional; add others yourself.
-        </p>
-
-        <DeadlineHorizon listings={sorted.length ? sorted : listings} />
-
-        <section className="matcher" id="matcher" aria-labelledby="mtitle">
-          <p className="eyebrow">Match me</p>
-          <h2 id="mtitle">Describe yourself. In your own words.</h2>
-          <p className="sub">
-            No dropdowns, no signup. Say where you&apos;re at and what you want out
-            of this, and every listing below gets read and scored against it.
+      <section className="hero">
+        <div className="wrap">
+          <span className="tagline">
+            <i aria-hidden />
+            {loading
+              ? "Loading open competitions…"
+              : `${stats.open} open · ${sourceLabel}`}
+          </span>
+          <h1>Hackathons you can actually finish.</h1>
+          <p className="lede">
+            Every listing carries a skill floor, an eligibility note, and an
+            honest estimate of how many weekends it costs. Ranked by whether
+            you&apos;d survive it — and how many people are already looking for
+            teammates.
           </p>
+          <div className="stats">
+            <div className="stat">
+              <span className="n">{loading ? "—" : stats.open}</span>
+              <span className="l">open now</span>
+            </div>
+            <div className="stat">
+              <span className="n">{loading ? "—" : stats.soon}</span>
+              <span className="l">closing in 7 days</span>
+            </div>
+            <div className="stat">
+              <span className="n">{loading ? "—" : stats.beginner}</span>
+              <span className="l">beginner friendly</span>
+            </div>
+            <div className="stat">
+              <span className="n">{loading ? "—" : stats.solo}</span>
+              <span className="l">solo friendly</span>
+            </div>
+          </div>
+        </div>
+      </section>
 
-          <div className="prompt">
+      <section className="matcher" id="matcher">
+        <div className="wrap">
+          <div className="mbox">
+            <label className="sr" htmlFor="selfdesc">
+              Describe your background and what you want
+            </label>
             <textarea
-              id="mq"
+              id="selfdesc"
               rows={3}
-              aria-label="Describe yourself"
               value={matchText}
               onChange={(e) => {
                 const value = e.target.value;
@@ -370,12 +386,20 @@ export default function HomePage() {
                   void runMatch();
                 }
               }}
-              placeholder="I'm a credit risk data scientist — strong on tabular modelling, never touched deep learning. Free most evenings for the next month and I want something that stretches me without needing a GPU."
+              placeholder="Second-year CS student. Comfortable with Python and pandas, never deployed anything. Want something tabular I can do alone over two weekends."
             />
             <div className="mfoot">
+              <span className="hint">
+                {matching ? THINKING[thinkIdx] + "…" : matchNote}
+              </span>
+              {matchOn && (
+                <button type="button" className="btn quiet" onClick={resetMatch}>
+                  Start over
+                </button>
+              )}
               <button
-                className="mgo"
                 type="button"
+                className="btn"
                 disabled={!ready || matching}
                 onClick={() => void runMatch()}
               >
@@ -383,33 +407,16 @@ export default function HomePage() {
                   ? "Scoring…"
                   : matchOn
                     ? "Re-score"
-                    : `Score all ${listings.length || ""} listings`.trim()}
+                    : `Rank all ${listings.length || ""} for me`.trim()}
               </button>
-              <span className="mnote">
-                {matching ? (
-                  <span className="thinking">
-                    <i />
-                    {THINKING[thinkIdx]}…
-                  </span>
-                ) : (
-                  matchNote
-                )}
-              </span>
-              {matchOn && (
-                <button className="mreset" type="button" onClick={resetMatch}>
-                  Start over
-                </button>
-              )}
             </div>
           </div>
-
-          <div className="examples">
-            <span className="exlabel">Or start from</span>
+          <div className="starters">
             {MATCH_EXAMPLES.map((example) => (
               <button
                 key={example.label}
                 type="button"
-                className="ex"
+                className="chip"
                 onClick={() => {
                   setMatchText(example.text);
                   setMatchNote("Ready");
@@ -419,315 +426,221 @@ export default function HomePage() {
               </button>
             ))}
           </div>
-        </section>
+          {matchOn && (
+            <div className="readout">
+              <p>
+                Read {stats.open} open listings. You&apos;re a strong fit for{" "}
+                {strongFits}. Remove anything below to re-rank.
+              </p>
+              <div className="pills">
+                <span className="pill">
+                  {matchSkill}
+                  <button type="button" aria-label="Clear match" onClick={resetMatch}>
+                    ×
+                  </button>
+                </span>
+                {matchDomains.map((domain) => (
+                  <span className="pill" key={domain}>
+                    {domainLabel(domain)}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </section>
 
-      <div className="filters">
-        <div className="wrap">
-          <div className="frow">
-            <div className="search">
-              <svg
-                width="15"
-                height="15"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.4"
-              >
-                <circle cx="11" cy="11" r="7" />
-                <path d="M20 20l-4-4" />
-              </svg>
-              <input
-                type="search"
-                placeholder="Search by name, host, or tech…"
-                aria-label="Search hackathons"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-            </div>
-            <div className="seg" role="group" aria-label="Skill level">
-              {(["all", "beginner", "intermediate", "advanced"] as const).map(
-                (value) => (
-                  <button
-                    key={value}
-                    type="button"
-                    data-level={value}
-                    aria-pressed={level === value}
-                    onClick={() => setLevel(value)}
-                  >
-                    {value === "all" ? "All levels" : value[0].toUpperCase() + value.slice(1)}
-                  </button>
-                ),
-              )}
-            </div>
-            <div className="sortwrap">
-              <label htmlFor="sort">Sort</label>
-              <select
-                id="sort"
-                value={sort}
-                onChange={(e) => setSort(e.target.value as SortKey)}
-              >
-                {matchOn && <option value="fit">Best match for you</option>}
-                <option value="finish">Best chance of finishing</option>
-                <option value="soon">Closing soonest</option>
-                <option value="prize">Biggest prize</option>
-              </select>
-            </div>
-          </div>
-          <div className="frow">
-            <div className="chips" role="group" aria-label="Domain">
-              {DOMAIN_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  className="chip"
-                  aria-pressed={domains.has(option.value)}
-                  onClick={() => toggleDomain(option.value)}
-                >
-                  {option.label}
-                </button>
-              ))}
-              <button
-                type="button"
-                className="chip flag"
-                aria-pressed={flags.has("noPrize")}
-                onClick={() => toggleFlag("noPrize")}
-              >
-                Include no-prize
-              </button>
-              <button
-                type="button"
-                className="chip flag"
-                aria-pressed={flags.has("unstop")}
-                onClick={() => {
-                  toggleFlag("unstop");
-                  if (sourceFilter === "unstop") setSourceFilter("default");
-                }}
-              >
-                Include Unstop
-              </button>
-              <button
-                type="button"
-                className="chip flag"
-                aria-pressed={flags.has("students")}
-                onClick={() => toggleFlag("students")}
-              >
-                Students only
-              </button>
-              <button
-                type="button"
-                className="chip flag"
-                aria-pressed={flags.has("farHorizon")}
-                onClick={() => toggleFlag("farHorizon")}
-              >
-                Farther than 90 days
-              </button>
-              <button
-                type="button"
-                className="chip flag"
-                aria-pressed={flags.has("starter")}
-                onClick={() => toggleFlag("starter")}
-              >
-                Has starter code
-              </button>
-              <button
-                type="button"
-                className="chip flag"
-                aria-pressed={flags.has("india")}
-                onClick={() => toggleFlag("india")}
-              >
-                Open in India
-              </button>
-            </div>
+      <div className="toolbar" id="listings">
+        <div className="wrap tools">
+          {(["beginner", "intermediate", "advanced"] as const).map((level) => (
+            <button
+              key={level}
+              type="button"
+              className="filter"
+              aria-pressed={levels.has(level)}
+              onClick={() => toggleLevel(level)}
+            >
+              {level[0].toUpperCase() + level.slice(1)}
+            </button>
+          ))}
+          <span className="divider" />
+          <button
+            type="button"
+            className="filter"
+            aria-pressed={flags.has("solo")}
+            onClick={() => toggleFlag("solo")}
+          >
+            Solo allowed
+          </button>
+          <button
+            type="button"
+            className="filter"
+            aria-pressed={flags.has("starter")}
+            onClick={() => toggleFlag("starter")}
+          >
+            Starter code
+          </button>
+          <button
+            type="button"
+            className="filter"
+            aria-pressed={flags.has("india")}
+            onClick={() => toggleFlag("india")}
+          >
+            Open in India
+          </button>
+          <button
+            type="button"
+            className="filter"
+            aria-pressed={flags.has("prize")}
+            onClick={() => toggleFlag("prize")}
+          >
+            Has prize
+          </button>
+          <button
+            type="button"
+            className="filter"
+            aria-pressed={flags.has("students")}
+            onClick={() => toggleFlag("students")}
+          >
+            Students only
+          </button>
+          <button
+            type="button"
+            className="filter"
+            aria-pressed={flags.has("unstop")}
+            onClick={() => toggleFlag("unstop")}
+          >
+            Include Unstop
+          </button>
+          <button
+            type="button"
+            className="filter"
+            aria-pressed={flags.has("farHorizon")}
+            onClick={() => toggleFlag("farHorizon")}
+          >
+            Farther than 90 days
+          </button>
+          <div className="right">
+            <span className="count">
+              {loading ? "…" : `${sorted.length} of ${stats.open}`}
+            </span>
+            <label className="sr" htmlFor="sort">
+              Sort
+            </label>
+            <select
+              className="sort"
+              id="sort"
+              value={sort}
+              onChange={(e) => setSort(e.target.value as SortKey)}
+            >
+              {matchOn && <option value="fit">Best match for you</option>}
+              <option value="interest">Most looking for teammates</option>
+              <option value="finish">Best chance of finishing</option>
+              <option value="soon">Closing soonest</option>
+              <option value="prize">Biggest prize</option>
+            </select>
           </div>
         </div>
       </div>
 
-      <main className="wrap page-grid">
-        <div>
-        <div className="meta">
-          <span>
-            {loading ? (
-              "Loading…"
-            ) : matchOn ? (
-              <>
-                <b>{sorted.filter((item) => (item.fit || 0) >= 60).length}</b> strong
-                matches · <b>{sorted.length}</b> open in total
-              </>
-            ) : (
-              <>
-                <b>{sorted.length}</b>{" "}
-                {includeNoPrize ? "open" : "with prizes"}
-                {!farHorizon ? " · next 90 days" : ""}
-                {studentsOnly ? " · students only" : ""} ·{" "}
-                <b>{sorted.filter((item) => (item.daysLeft ?? 99) <= 7).length}</b>{" "}
-                close this week
-              </>
-            )}
-          </span>
-          {activeFilters && (
-            <button className="clearbtn" type="button" onClick={clearFilters}>
-              Clear filters
-            </button>
-          )}
-        </div>
-
-        {error && <div className="error-banner">{error}</div>}
-
-        <ul className="list">
-          {loading &&
-            Array.from({ length: 4 }).map((_, idx) => (
-              <li key={idx} className="skel" />
-            ))}
-
+      <main className="wrap">
+        <div className="grid">
+          {error && <div className="error-banner">{error}</div>}
           {!loading && !sorted.length && (
-            <li>
-              <div className="empty">
-                <h3>Nothing open with those filters.</h3>
-                <p>
-                  The narrowest filter here is usually skill level. Widening it
-                  normally brings back four or five listings.
-                </p>
-                <button type="button" onClick={() => setLevel("all")}>
-                  Show all levels
-                </button>
-              </div>
-            </li>
-          )}
-
-          {!loading &&
-            sorted.map((listing, index) => {
-              const u = urgency(listing.daysLeft);
-              const spent = runwaySpent(listing.daysLeft);
-              const best = matchOn && sort === "fit" && index === 0;
-              const indiaOk = openInIndia(listing);
-              return (
-                <li
-                  key={listing.id}
-                  id={`card-${listing.id}`}
-                  className={`card ${u}${best ? " best" : ""}`}
-                >
-                  {best && <span className="best-flag">Best match</span>}
-                  <div className="runway" aria-hidden="true">
-                    <div className="spent" style={{ width: `${spent}%` }} />
-                    <div className="left" style={{ width: `${100 - spent}%` }} />
-                  </div>
-                  <div className="body">
-                    <div className="head">
-                      <div>
-                        {matchOn && listing.fit != null && (
-                          <span className="fit">
-                            <b>{listing.fit}%</b>
-                            <u>fit for you</u>
-                          </span>
-                        )}
-                        <h3 className="title">
-                          <a href={listing.url} target="_blank" rel="noreferrer">
-                            {listing.title}
-                          </a>
-                        </h3>
-                        <p className="host">
-                          {listing.organizer} · {listing.source}
-                          {listing.community_submitted ? " · added by someone" : ""}
-                        </p>
-                      </div>
-                      <div className="count">
-                        <b>
-                          {listing.daysLeft == null ? "—" : `${listing.daysLeft}d`}
-                        </b>
-                        <u>
-                          {(listing.daysLeft ?? 99) <= 7 ? "closing" : "of runway"}
-                        </u>
-                      </div>
-                    </div>
-                    <p className={`why${matchOn ? " mine" : ""}`}>{listing.reason}</p>
-                    <div className="tags">
-                      <span className="tag lv">{listing.skill_floor}</span>
-                      {listing.domains.slice(0, 2).map((domain) => (
-                        <span className="tag" key={domain}>
-                          {domainLabel(domain)}
-                        </span>
-                      ))}
-                      {listing.has_starter_code && (
-                        <span className="tag ok">starter code</span>
-                      )}
-                      {listing.students_only && (
-                        <span className="tag ok">students</span>
-                      )}
-                      {!indiaOk && <span className="tag warn">region-locked</span>}
-                    </div>
-                    <div className="foot">
-                      <span className="money">{formatPrize(listing.prize_pool_usd)}</span>
-                      <span>
-                        {listing.requires_travel ? "Travel required" : "Online / remote ok"}
-                      </span>
-                      {listing.team_size_max != null && (
-                        <span>Team ≤ {listing.team_size_max}</span>
-                      )}
-                    </div>
-                    <TeammateSignal listing={listing} />
-                  </div>
-                </li>
-              );
-            })}
-        </ul>
-        </div>
-
-        <aside className="sources-side" aria-label="Sources">
-          <h2>From these sites</h2>
-          <p>
-            Default feed is Devpost, Kaggle, and Devfolio. Unstop is optional.
-            Competitions people add still show under their real site (Kaggle,
-            Devpost, …), marked as added by someone.
-          </p>
-          <ul>
-            <li>
-              <button
-                type="button"
-                className={sourceFilter === "default" ? "on" : undefined}
-                onClick={() => setSourceFilter("default")}
-              >
-                Default feed
+            <div className="empty">
+              <h3>Nothing matches those filters.</h3>
+              <p>Clear a few chips and try again — or include no-prize comps.</p>
+              <button type="button" className="btn quiet" onClick={clearFilters}>
+                Clear filters
               </button>
-            </li>
-            {sourceRows
-              .filter(
-                (row) =>
-                  row.source !== "manual" &&
-                  (row.count > 0 || row.in_default_feed || row.source === "unstop"),
-              )
-              .map((row) => (
-                <li key={row.source}>
-                  <button
-                    type="button"
-                    className={sourceFilter === row.source ? "on" : undefined}
-                    onClick={() => {
-                      setSourceFilter(row.source);
-                      if (row.source === "unstop") {
-                        setFlags((current) => new Set(current).add("unstop"));
-                      }
-                    }}
-                  >
-                    {row.label}
-                    <span className="count">({row.count})</span>
-                  </button>
-                </li>
-              ))}
-          </ul>
-        </aside>
+            </div>
+          )}
+          {sorted.map((listing) => {
+            const urgent = listing.daysLeft !== null && listing.daysLeft <= 7;
+            const interested = interestCount(listing);
+            const prize = listing.prize_pool_usd || 0;
+            return (
+              <article
+                key={listing.id}
+                className={`card${urgent ? " urgent" : ""}`}
+              >
+                <div className="card-top">
+                  {interested > 0 && (
+                    <span className="interest" title="People looking for teammates">
+                      <strong>{interested}</strong> looking
+                    </span>
+                  )}
+                  <span className="src">{listing.source}</span>
+                  {typeof listing.fit === "number" && (
+                    <span className="fit">{listing.fit}% fit</span>
+                  )}
+                  <span className="days">
+                    {listing.daysLeft === null
+                      ? "Deadline TBA"
+                      : listing.daysLeft === 0
+                        ? "Closes today"
+                        : `${listing.daysLeft} days left`}
+                  </span>
+                </div>
+                <h3>
+                  <a href={listing.url} target="_blank" rel="noreferrer">
+                    {listing.title}
+                  </a>
+                </h3>
+                <p className="why">
+                  {listing.reason.charAt(0).toUpperCase() + listing.reason.slice(1)}
+                  {listing.reason.endsWith(".") ? "" : "."}
+                </p>
+                <div className="tags">
+                  {listing.domains.slice(0, 3).map((domain) => (
+                    <span className="tag" key={domain}>
+                      {domainLabel(domain)}
+                    </span>
+                  ))}
+                  <span className="tag">{listing.skill_floor}</span>
+                  {isSoloFriendly(listing) ? (
+                    <span className="tag">solo ok</span>
+                  ) : (
+                    <span className="tag">team</span>
+                  )}
+                  {listing.has_starter_code && (
+                    <span className="tag">starter code</span>
+                  )}
+                  {listing.students_only && <span className="tag">students</span>}
+                  {listing.community_submitted && (
+                    <span className="tag">added by someone</span>
+                  )}
+                </div>
+                <div className="card-foot">
+                  <span className={`prize${prize ? "" : " none"}`}>
+                    {formatPrize(listing.prize_pool_usd)}
+                  </span>
+                  <span className="effort">{effortEstimate(listing)}</span>
+                </div>
+                <div className="card-extra">
+                  <TeammateSignal
+                    listing={listing}
+                    onInterest={(count) => bumpInterest(listing.id, count)}
+                  />
+                </div>
+              </article>
+            );
+          })}
+        </div>
       </main>
 
-      <AlertsSection
-        skillLevel={matchOn ? matchSkill : "beginner"}
-        domains={matchOn ? matchDomains : []}
-      />
-
+      <AlertsSection skillLevel={matchSkill} domains={matchDomains} />
       <SubmitCompetition />
 
-      <div className="wrap colophon">
-        FindHackathons · Devpost, Kaggle, Devfolio by default · Unstop on request ·
-        add others below
-      </div>
+      <footer>
+        <div className="wrap fw">
+          <span>FindHackathons</span>
+          <span>Devpost, Kaggle and Devfolio by default. Unstop on request.</span>
+          <span className="push">
+            {loading ? "" : `${stats.open} open competitions`}
+          </span>
+        </div>
+      </footer>
     </>
   );
 }

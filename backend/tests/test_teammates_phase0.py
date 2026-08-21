@@ -71,6 +71,7 @@ def test_interest_returns_discord_link(monkeypatch):
 
     listing = client.get("/api/listings/listing-team-1").json()
     assert listing["team_channel_url"] == DISCORD
+    assert listing["teammate_interest_count"] == 1
 
 
 def test_alerts_looking_for_team_mentions_discord(monkeypatch):

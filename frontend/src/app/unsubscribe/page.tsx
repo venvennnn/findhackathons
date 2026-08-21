@@ -38,18 +38,12 @@ function UnsubscribeInner() {
 
   return (
     <main className="wrap" style={{ padding: "48px 16px", maxWidth: 520 }}>
-      <p style={{ color: "var(--yahoo-purple)", fontWeight: 700, margin: 0 }}>
-        FindHackathons
-      </p>
-      <h1 style={{ fontSize: 22, margin: "8px 0 12px" }}>Weekly alerts</h1>
-      {status === "loading" && <p className="fineprint">Unsubscribing…</p>}
-      {status === "done" && (
-        <p className="fineprint" style={{ color: "var(--ok)" }}>
-          {message}
-        </p>
-      )}
+      <p style={{ fontWeight: 600, margin: 0 }}>FindHackathons</p>
+      <h1 style={{ fontSize: 28, margin: "12px 0" }}>Weekly alerts</h1>
+      {status === "loading" && <p className="note">Unsubscribing…</p>}
+      {status === "done" && <p className="note ok">{message}</p>}
       {status === "error" && (
-        <p className="fineprint" style={{ color: "var(--accent)" }}>
+        <p className="note" style={{ color: "var(--urgent)" }}>
           {message}
         </p>
       )}
@@ -65,7 +59,7 @@ export default function UnsubscribePage() {
     <Suspense
       fallback={
         <main className="wrap" style={{ padding: 48 }}>
-          <p className="fineprint">Loading…</p>
+          <p className="note">Loading…</p>
         </main>
       }
     >
