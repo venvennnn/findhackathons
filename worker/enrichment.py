@@ -112,6 +112,9 @@ def listing_from_structured(
                 prize_pool = None
         except (TypeError, ValueError):
             prize_pool = None
+    prize_text = structured.get("prize_text")
+    if prize_text is not None:
+        prize_text = str(prize_text).strip() or None
 
     skill_hint = str(structured.get("skill_floor") or "").lower()
     if skill_hint in {s.value for s in SkillLevel}:
@@ -165,6 +168,7 @@ def listing_from_structured(
             requires_travel=bool(structured.get("requires_travel", False)),
         ),
         prize_pool_usd=prize_pool if prize_pool and prize_pool > 0 else None,
+        prize_text=prize_text,
         has_starter_code=has_starter,
         confidence=confidence,
     )

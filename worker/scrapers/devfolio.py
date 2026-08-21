@@ -60,25 +60,41 @@ def _strip_html(raw: Any) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
-def _prize_to_text(prizes: Any) -> Tuple[Optional[str], Optional[int]]:
+def _prize_to_text(prizes: Any) -> Tuple[Optional[str], Optional[int], Optional[str]]:
+    """Return (summary_text, prize_pool_usd, prize_text_display)."""
+    from scrapers.prizes import parse_prize_money
+
     if not isinstance(prizes, list) or not prizes:
-        return None, None
-    total = 0
+        return None, None, None
+    total_usd = 0
+    displays: list[str] = []
     for prize in prizes:
         if not isinstance(prize, dict):
             continue
+        raw_val = None
+        currency_hint = prize.get("currency") or prize.get("currency_code")
         for key in ("amount", "value", "cash", "prize_amount", "rewards"):
             value = prize.get(key)
+            if value is None:
+                continue
             if isinstance(value, (int, float)):
-                total += int(value)
-                break
-            if isinstance(value, str):
-                digits = re.sub(r"[^\d]", "", value)
-                if digits:
-                    total += int(digits)
-                break
-    text = f"{len(prizes)} prizes" + (f" (~{total:,})" if total else "")
-    return text, (total or None)
+                raw_val = f"{currency_hint or ''} {value}".strip()
+            else:
+                raw_val = str(value)
+            break
+        if raw_val is None:
+            continue
+        parsed = parse_prize_money(raw_val)
+        if not parsed and currency_hint:
+            parsed = parse_prize_money(f"{currency_hint} {raw_val}")
+        if parsed:
+            total_usd += parsed.amount_usd
+            displays.append(parsed.display)
+    if not total_usd:
+        return None, None, None
+    text = f"{len(prizes)} prizes"
+    display = displays[0] if len(displays) == 1 else f"~${total_usd:,}"
+    return text, total_usd, display
 
 
 def _fetch_raw(app_type: str = "application_open", page_size: int = 20, max_pages: int = 20) -> Iterator[Dict[str, Any]]:
@@ -118,7 +134,7 @@ def _normalize(src: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     reg_ends = _parse_dt(setting.get("reg_ends_at"))
     ends_at = _parse_dt(src.get("ends_at"))
     deadline = reg_ends or ends_at
-    prize_text, prize_value = _prize_to_text(src.get("prizes"))
+    prize_text, prize_value, prize_display = _prize_to_text(src.get("prizes"))
     themes = [
         str(t.get("name") if isinstance(t, dict) else t).lower()
         for t in (src.get("themes") or [])
@@ -137,6 +153,7 @@ def _normalize(src: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         "deadline_utc": deadline.isoformat() if deadline else None,
         "_deadline_dt": deadline,
         "prize_pool_usd": prize_value,
+        "prize_text": prize_display,
         "has_cash_prize": bool(prize_value and prize_value > 0),
         "category": "hackathon",
         "has_starter_code": False,

@@ -41,6 +41,11 @@ _COLUMN_MIGRATIONS = (
         "unsubscribe_token",
         "ALTER TABLE alert_subscriptions ADD COLUMN unsubscribe_token VARCHAR",
     ),
+    (
+        "listings",
+        "prize_text",
+        "ALTER TABLE listings ADD COLUMN prize_text VARCHAR",
+    ),
 )
 
 

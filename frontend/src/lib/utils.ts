@@ -22,9 +22,25 @@ export function runwaySpent(days: number | null): number {
   return Math.max(0, Math.min(100, ((HORIZON_DAYS - left) / HORIZON_DAYS) * 100));
 }
 
-export function formatPrize(amount?: number | null): string {
-  if (!amount) return "No cash prize";
-  return `$${amount.toLocaleString()}`;
+/** Prefer host currency label; append ~USD when the original isn't dollars. */
+export function formatPrize(
+  amount?: number | null,
+  prizeText?: string | null,
+): string {
+  const text = prizeText?.trim();
+  if (text) {
+    const hasUsdApprox = /~\s*\$|\(\s*\$/.test(text);
+    const isForeign =
+      /[€£¥₹]|INR|EUR|GBP|CAD|AUD|SGD|JPY|CNY|KRW|CHF|HKD|NZD|SEK|NOK|DKK|PLN|BRL|MXN|ZAR|TRY|AED|THB|PHP|IDR|MYR|VND|\bRs\.?\b/i.test(
+        text,
+      ) && !hasUsdApprox;
+    if (isForeign && amount != null && amount > 0) {
+      return `${text} (~$${Math.round(amount).toLocaleString("en-US")})`;
+    }
+    return text;
+  }
+  if (amount == null || amount <= 0) return "No cash prize";
+  return `$${amount.toLocaleString("en-US")}`;
 }
 
 export function domainLabel(domain: string): string {

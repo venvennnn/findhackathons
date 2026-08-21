@@ -35,6 +35,7 @@ class ListingRow(Base):
     team_size_max = Column(Integer, nullable=True)
     requires_travel = Column(Boolean, default=False)
     prize_pool_usd = Column(Integer, nullable=True)
+    prize_text = Column(String, nullable=True)
     has_starter_code = Column(Boolean, default=False)
     confidence = Column(String, default="medium")
     content_hash = Column(String, nullable=True, index=True)
@@ -61,6 +62,7 @@ def enriched_to_payload(enriched, *, source: str, content_hash: str, raw_snippet
         "team_size_max": enriched.eligibility.team_size_max,
         "requires_travel": enriched.eligibility.requires_travel,
         "prize_pool_usd": enriched.prize_pool_usd,
+        "prize_text": getattr(enriched, "prize_text", None),
         "has_starter_code": enriched.has_starter_code,
         "confidence": enriched.confidence.value,
         "content_hash": content_hash,
@@ -131,6 +133,7 @@ def _upsert_direct(payload: Dict[str, Any]) -> str:
             team_size_max=payload["team_size_max"],
             requires_travel=payload["requires_travel"],
             prize_pool_usd=payload["prize_pool_usd"],
+            prize_text=payload.get("prize_text"),
             has_starter_code=payload["has_starter_code"],
             confidence=payload["confidence"],
             content_hash=payload["content_hash"],

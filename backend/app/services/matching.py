@@ -58,6 +58,7 @@ def listing_to_read(
         team_size_max=listing.team_size_max,
         requires_travel=listing.requires_travel,
         prize_pool_usd=listing.prize_pool_usd,
+        prize_text=getattr(listing, "prize_text", None),
         has_starter_code=listing.has_starter_code,
         confidence=listing.confidence,
         is_active=listing.is_active,

@@ -34,6 +34,8 @@ export interface Listing {
   team_size_max?: number | null;
   requires_travel: boolean;
   prize_pool_usd?: number | null;
+  /** Original host currency label (e.g. "₹200,000"); USD approx is prize_pool_usd. */
+  prize_text?: string | null;
   has_starter_code: boolean;
   confidence: string;
   is_active: boolean;

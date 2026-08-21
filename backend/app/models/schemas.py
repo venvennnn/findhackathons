@@ -61,6 +61,8 @@ class ListingRead(BaseModel):
     team_size_max: Optional[int] = None
     requires_travel: bool
     prize_pool_usd: Optional[int] = None
+    # Original currency label from the host (e.g. "₹200,000"). USD approx in prize_pool_usd.
+    prize_text: Optional[str] = None
     has_starter_code: bool
     confidence: ConfidenceLevel
     is_active: bool
@@ -274,6 +276,7 @@ class IngestListing(BaseModel):
     team_size_max: Optional[int] = None
     requires_travel: bool = False
     prize_pool_usd: Optional[int] = None
+    prize_text: Optional[str] = None
     has_starter_code: bool = False
     confidence: ConfidenceLevel = ConfidenceLevel.medium
     content_hash: Optional[str] = None

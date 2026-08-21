@@ -45,6 +45,8 @@ class Listing(SQLModel, table=True):
     team_channel_url: Optional[str] = None
     # True when a person submitted/corrected this listing via the website.
     community_submitted: bool = False
+    # Original prize label (e.g. "₹200,000") when not already USD.
+    prize_text: Optional[str] = None
     is_active: bool = Field(default=True, index=True)
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)

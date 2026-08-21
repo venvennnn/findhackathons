@@ -55,6 +55,7 @@ class HackathonListing(BaseModel):
     )
     eligibility: Eligibility
     prize_pool_usd: Optional[int] = None
+    prize_text: Optional[str] = None
     has_starter_code: bool = Field(
         description="True if starter repo, notebook, or template is provided."
     )
