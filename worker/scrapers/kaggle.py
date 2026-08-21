@@ -33,10 +33,6 @@ CATEGORY_TO_FLOOR = {
 }
 OFFICIAL_CATEGORIES = ("gettingStarted", "playground", "featured", "research")
 
-MIN_TEAMS = 5
-MIN_DESC = 120
-MAX_DAYS_OUT = 365
-
 REWARD_NON_CASH = re.compile(
     r"^(knowledge|swag|kudos|jobs?|internship|experience|prestige|n/?a|none|-)$",
     re.I,
@@ -46,7 +42,7 @@ REWARD_MONEY = re.compile(
 )
 
 
-def fetch_kaggle(limit: int = 200) -> List[RawListing]:
+def fetch_kaggle(limit: int = 500) -> List[RawListing]:
     auth = _auth()
     if not auth:
         print("[kaggle] set KAGGLE_USERNAME + KAGGLE_KEY (legacy API credentials)")
@@ -71,7 +67,7 @@ def fetch_kaggle(limit: int = 200) -> List[RawListing]:
                 count += 1
             print(f"[kaggle] general/{category}: {count}")
 
-        kept = rejected = 0
+        kept = 0
         for raw in _fetch_raw(client, group="community", category=None):
             item = _normalize(raw, is_community=True)
             if not item:
@@ -79,14 +75,13 @@ def fetch_kaggle(limit: int = 200) -> List[RawListing]:
             deadline = item.get("_deadline_dt")
             if deadline and deadline <= now:
                 continue
-            ok, _reason = _community_usable(item)
-            if not ok:
-                rejected += 1
+            # Keep every open community comp — feed horizon filtering is UI/API-side.
+            if item.get("_deadline_dt") is None:
                 continue
             listing = _to_raw(item)
             rows.setdefault(listing.url, listing)
             kept += 1
-        print(f"[kaggle] community: {kept} kept, {rejected} rejected")
+        print(f"[kaggle] community: {kept} open kept")
 
     listings = list(rows.values())
     listings.sort(
@@ -268,15 +263,9 @@ def _normalize(raw: Dict[str, Any], *, is_community: bool) -> Optional[Dict[str,
 
 
 def _community_usable(item: Dict[str, Any]) -> Tuple[bool, str]:
+    """Legacy helper — community ingest now keeps all open comps with a deadline."""
     if item.get("_deadline_dt") is None:
         return False, "no_deadline"
-    days_left = item.get("days_left")
-    if days_left is not None and days_left > MAX_DAYS_OUT:
-        return False, "deadline_too_far"
-    if (item.get("team_count") or 0) < MIN_TEAMS:
-        return False, "too_few_teams"
-    if (item.get("desc_len") or 0) < MIN_DESC:
-        return False, "thin_description"
     return True, ""
 
 

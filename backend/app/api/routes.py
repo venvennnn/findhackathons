@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Set
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
@@ -193,6 +193,18 @@ def list_listings(
         description="Default true: only cash-prize listings. "
         "Pass false to include Knowledge / no-prize competitions as well.",
     ),
+    students_only: Optional[bool] = Query(
+        default=None,
+        description="When true, only student-restricted listings. "
+        "When false, only open-to-all. Omit for both.",
+    ),
+    max_deadline_days: Optional[int] = Query(
+        default=90,
+        ge=0,
+        le=3650,
+        description="Only listings with a deadline within this many days. "
+        "Pass 0 to disable the horizon filter (show all open).",
+    ),
     active_only: bool = True,
     limit: int = Query(default=20, ge=1, le=100),
     session: Session = Depends(get_session),
@@ -224,6 +236,19 @@ def list_listings(
         statement = statement.where(
             Listing.prize_pool_usd != None,  # noqa: E711
             Listing.prize_pool_usd > 0,
+        )
+    if students_only is True:
+        statement = statement.where(Listing.students_only == True)  # noqa: E712
+    elif students_only is False:
+        statement = statement.where(Listing.students_only == False)  # noqa: E712
+
+    # Default product horizon: closing within 90 days (known deadlines only).
+    if max_deadline_days and max_deadline_days > 0:
+        now = datetime.now(timezone.utc)
+        cutoff = now + timedelta(days=max_deadline_days)
+        statement = statement.where(
+            Listing.deadline_utc != None,  # noqa: E711
+            col(Listing.deadline_utc) <= cutoff,
         )
 
     listings = list(session.exec(statement.limit(limit * 5)).all())

@@ -53,9 +53,9 @@ export default function HomePage() {
   const [query, setQuery] = useState("");
   const [level, setLevel] = useState<SkillLevel | "all">("all");
   const [domains, setDomains] = useState<Set<DomainCategory>>(new Set());
-  const [flags, setFlags] = useState<Set<"starter" | "india" | "noPrize" | "unstop">>(
-    new Set(),
-  );
+  const [flags, setFlags] = useState<
+    Set<"starter" | "india" | "noPrize" | "unstop" | "students" | "farHorizon">
+  >(new Set());
   const [sort, setSort] = useState<SortKey>("prize");
   const [sourceRows, setSourceRows] = useState<SourceCount[]>([]);
   const [sourceFilter, setSourceFilter] = useState<SourcePlatform | "default">(
@@ -75,6 +75,8 @@ export default function HomePage() {
 
   const includeNoPrize = flags.has("noPrize");
   const includeUnstop = flags.has("unstop");
+  const studentsOnly = flags.has("students");
+  const farHorizon = flags.has("farHorizon");
 
   const feedSources = useMemo((): SourcePlatform[] => {
     if (sourceFilter !== "default") return [sourceFilter];
@@ -108,9 +110,12 @@ export default function HomePage() {
         // Default: cash-prize comps from Devpost/Kaggle/Devfolio (+ manual).
         // Unstop only when opted in or selected in the sidebar.
         const data = await getListings({
-          limit: "60",
+          limit: "100",
           has_prize: includeNoPrize ? "false" : "true",
           sources: feedKey,
+          // Default: closing within 90 days. Chip "Farther deadlines" disables.
+          max_deadline_days: farHorizon ? "0" : "90",
+          ...(studentsOnly ? { students_only: "true" } : {}),
         });
         if (!cancelled) {
           setListings(data);
@@ -132,7 +137,7 @@ export default function HomePage() {
     return () => {
       cancelled = true;
     };
-  }, [includeNoPrize, feedKey]);
+  }, [includeNoPrize, feedKey, farHorizon, studentsOnly]);
 
   const enriched: EnrichedListing[] = useMemo(() => {
     return listings.map((listing, index) => {
@@ -197,6 +202,8 @@ export default function HomePage() {
     flags.has("india") ||
     flags.has("noPrize") ||
     flags.has("unstop") ||
+    flags.has("students") ||
+    flags.has("farHorizon") ||
     sourceFilter !== "default";
 
   function toggleDomain(domain: DomainCategory) {
@@ -208,7 +215,9 @@ export default function HomePage() {
     });
   }
 
-  function toggleFlag(flag: "starter" | "india" | "noPrize" | "unstop") {
+  function toggleFlag(
+    flag: "starter" | "india" | "noPrize" | "unstop" | "students" | "farHorizon",
+  ) {
     setFlags((current) => {
       const next = new Set(current);
       if (next.has(flag)) next.delete(flag);
@@ -500,6 +509,22 @@ export default function HomePage() {
               <button
                 type="button"
                 className="chip flag"
+                aria-pressed={flags.has("students")}
+                onClick={() => toggleFlag("students")}
+              >
+                Students only
+              </button>
+              <button
+                type="button"
+                className="chip flag"
+                aria-pressed={flags.has("farHorizon")}
+                onClick={() => toggleFlag("farHorizon")}
+              >
+                Farther than 90 days
+              </button>
+              <button
+                type="button"
+                className="chip flag"
                 aria-pressed={flags.has("starter")}
                 onClick={() => toggleFlag("starter")}
               >
@@ -532,10 +557,11 @@ export default function HomePage() {
             ) : (
               <>
                 <b>{sorted.length}</b>{" "}
-                {includeNoPrize ? "open" : "with prizes"} ·{" "}
+                {includeNoPrize ? "open" : "with prizes"}
+                {!farHorizon ? " · next 90 days" : ""}
+                {studentsOnly ? " · students only" : ""} ·{" "}
                 <b>{sorted.filter((item) => (item.daysLeft ?? 99) <= 7).length}</b>{" "}
                 close this week
-                {sourceFilter !== "default" ? ` · ${sourceFilter}` : ""}
               </>
             )}
           </span>
