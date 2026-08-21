@@ -104,3 +104,89 @@ def test_sources_endpoint_counts():
     assert by_source.get("unstop", 0) >= 1
     assert "kaggle" in body["default_sources"]
     assert "unstop" not in body["default_sources"]
+
+
+def test_max_deadline_days_default_hides_far_listings():
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    SQLModel.metadata.create_all(engine)
+    now = datetime.now(timezone.utc)
+    with Session(engine) as session:
+        session.add(
+            Listing(
+                title="Soon Comp",
+                organizer="Test",
+                url="https://example.com/soon",
+                source=SourcePlatform.devpost,
+                deadline_utc=now + timedelta(days=30),
+                domains=["other"],
+                skill_floor=SkillLevel.beginner,
+                skill_floor_reasoning="t",
+                prize_pool_usd=1000,
+                confidence=ConfidenceLevel.high,
+                is_active=True,
+            )
+        )
+        session.add(
+            Listing(
+                title="Far Comp",
+                organizer="Test",
+                url="https://example.com/far",
+                source=SourcePlatform.devpost,
+                deadline_utc=now + timedelta(days=180),
+                domains=["other"],
+                skill_floor=SkillLevel.beginner,
+                skill_floor_reasoning="t",
+                prize_pool_usd=2000,
+                confidence=ConfidenceLevel.high,
+                is_active=True,
+            )
+        )
+        session.add(
+            Listing(
+                title="Student Comp",
+                organizer="Test",
+                url="https://example.com/student",
+                source=SourcePlatform.devpost,
+                deadline_utc=now + timedelta(days=20),
+                domains=["other"],
+                skill_floor=SkillLevel.beginner,
+                skill_floor_reasoning="t",
+                students_only=True,
+                prize_pool_usd=500,
+                confidence=ConfidenceLevel.high,
+                is_active=True,
+            )
+        )
+        session.commit()
+
+    def override_session():
+        with Session(engine) as session:
+            yield session
+
+    app.dependency_overrides[get_session] = override_session
+    get_settings.cache_clear()
+    client = TestClient(app)
+
+    default = client.get("/api/listings", params={"limit": 50, "has_prize": "true"})
+    titles = {row["title"] for row in default.json()}
+    assert "Soon Comp" in titles
+    assert "Student Comp" in titles
+    assert "Far Comp" not in titles
+
+    wide = client.get(
+        "/api/listings",
+        params={"limit": 50, "has_prize": "true", "max_deadline_days": 0},
+    )
+    wide_titles = {row["title"] for row in wide.json()}
+    assert "Far Comp" in wide_titles
+
+    students = client.get(
+        "/api/listings",
+        params={"limit": 50, "has_prize": "true", "students_only": "true"},
+    )
+    student_titles = {row["title"] for row in students.json()}
+    assert student_titles == {"Student Comp"}

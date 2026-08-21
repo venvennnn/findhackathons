@@ -173,6 +173,8 @@ def _normalize(raw: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         }
     )
     floor = "advanced" if (prize_value or 0) >= 50_000 else "intermediate"
+    themes_list = [str(t).lower() for t in themes]
+    students_only = _looks_students_only(title, themes_list, loc)
 
     return {
         "title": title,
@@ -187,10 +189,28 @@ def _normalize(raw: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         "team_size_max": None,
         "requires_travel": not is_online,
         "description": prize_text or "",
-        "themes": [str(t).lower() for t in themes],
+        "themes": themes_list,
         "location": loc,
         "skill_floor": floor,
+        "students_only": students_only,
     }
+
+
+def _looks_students_only(title: str, themes: List[str], location: Optional[str]) -> bool:
+    """Heuristic: Devpost list API rarely exposes eligibility flags."""
+    blob = " ".join([title or "", " ".join(themes or []), location or ""]).lower()
+    keywords = (
+        "student",
+        "students only",
+        "university",
+        "college",
+        "campus",
+        "high school",
+        "undergrad",
+        "undergraduate",
+        "school students",
+    )
+    return any(k in blob for k in keywords)
 
 
 def _map_domains(themes: List[str]) -> List[str]:

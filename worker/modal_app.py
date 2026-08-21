@@ -41,7 +41,7 @@ app = modal.App("findhackathons-ingestion", image=image)
 secrets = modal.Secret.from_name("findhackathons-secrets")
 
 
-def _run_pipeline(limit_per_source: int = 20, kaggle_limit: int = 200) -> Dict[str, int]:
+def _run_pipeline(limit_per_source: int = 20, kaggle_limit: int = 500) -> Dict[str, int]:
     # Local imports so Modal serializes cleanly
     import sys
 
@@ -162,7 +162,7 @@ def ingest_kaggle_only():
     from db_writer import upsert_listing
     from scrapers.kaggle import fetch_kaggle, iter_prize_stats
 
-    rows = fetch_kaggle(limit=250)
+    rows = fetch_kaggle(limit=500)
     print(f"[kaggle-only] stats: {iter_prize_stats(rows)}")
     stats = {"fetched": 0, "enriched": 0, "created": 0, "updated": 0, "unchanged": 0, "failed": 0}
     for row in rows:
