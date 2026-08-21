@@ -7,8 +7,11 @@ import { SubmitCompetition } from "@/components/SubmitCompetition";
 import { TeammateSignal } from "@/components/TeammateSignal";
 import {
   DEFAULT_FEED_SOURCES,
+  DOMAIN_OPTIONS,
+  DomainCategory,
   Listing,
   MATCH_EXAMPLES,
+  PLATFORM_OPTIONS,
   SkillLevel,
   SourceCount,
   SourcePlatform,
@@ -48,8 +51,10 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [levels, setLevels] = useState<Set<SkillLevel>>(new Set());
+  const [domains, setDomains] = useState<Set<DomainCategory>>(new Set());
+  const [platforms, setPlatforms] = useState<Set<SourcePlatform>>(new Set());
   const [flags, setFlags] = useState<
-    Set<"solo" | "starter" | "india" | "prize" | "unstop" | "students" | "farHorizon">
+    Set<"solo" | "starter" | "india" | "prize" | "students" | "farHorizon">
   >(new Set(["prize"]));
   const [sort, setSort] = useState<SortKey>("interest");
 
@@ -62,21 +67,17 @@ export default function HomePage() {
     Record<string, { fit: number; reason: string }>
   >({});
   const [matchSkill, setMatchSkill] = useState<SkillLevel>("beginner");
-  const [matchDomains, setMatchDomains] = useState<
-    import("@/lib/api").DomainCategory[]
-  >([]);
+  const [matchDomains, setMatchDomains] = useState<DomainCategory[]>([]);
   const [sourceRows, setSourceRows] = useState<SourceCount[]>([]);
 
-  const includeUnstop = flags.has("unstop");
   const studentsOnly = flags.has("students");
   const farHorizon = flags.has("farHorizon");
   const prizeOnly = flags.has("prize");
 
   const feedSources = useMemo((): SourcePlatform[] => {
-    const base = [...DEFAULT_FEED_SOURCES];
-    if (includeUnstop && !base.includes("unstop")) base.push("unstop");
-    return base;
-  }, [includeUnstop]);
+    if (platforms.size > 0) return Array.from(platforms);
+    return [...DEFAULT_FEED_SOURCES];
+  }, [platforms]);
 
   const feedKey = sourcesParam(feedSources);
 
@@ -148,12 +149,13 @@ export default function HomePage() {
     return enriched.filter((listing) => {
       if (listing.daysLeft !== null && listing.daysLeft < 0) return false;
       if (levels.size && !levels.has(listing.skill_floor)) return false;
+      if (domains.size && !listing.domains.some((d) => domains.has(d))) return false;
       if (flags.has("solo") && !isSoloFriendly(listing)) return false;
       if (flags.has("starter") && !listing.has_starter_code) return false;
       if (flags.has("india") && !openInIndia(listing)) return false;
       return true;
     });
-  }, [enriched, levels, flags]);
+  }, [enriched, levels, domains, flags]);
 
   const sorted = useMemo(() => {
     return filtered.slice().sort((a, b) => {
@@ -192,6 +194,12 @@ export default function HomePage() {
     };
   }, [enriched]);
 
+  const sourceCountByPlatform = useMemo(() => {
+    const map: Partial<Record<SourcePlatform, number>> = {};
+    for (const row of sourceRows) map[row.source] = row.count;
+    return map;
+  }, [sourceRows]);
+
   const sourceLabel = useMemo(() => {
     const names = sourceRows
       .filter((row) => row.in_default_feed && row.count > 0)
@@ -209,7 +217,7 @@ export default function HomePage() {
   }
 
   function toggleFlag(
-    flag: "solo" | "starter" | "india" | "prize" | "unstop" | "students" | "farHorizon",
+    flag: "solo" | "starter" | "india" | "prize" | "students" | "farHorizon",
   ) {
     setFlags((current) => {
       const next = new Set(current);
@@ -219,8 +227,28 @@ export default function HomePage() {
     });
   }
 
+  function toggleDomain(domain: DomainCategory) {
+    setDomains((current) => {
+      const next = new Set(current);
+      if (next.has(domain)) next.delete(domain);
+      else next.add(domain);
+      return next;
+    });
+  }
+
+  function togglePlatform(platform: SourcePlatform) {
+    setPlatforms((current) => {
+      const next = new Set(current);
+      if (next.has(platform)) next.delete(platform);
+      else next.add(platform);
+      return next;
+    });
+  }
+
   function clearFilters() {
     setLevels(new Set());
+    setDomains(new Set());
+    setPlatforms(new Set());
     setFlags(new Set(["prize"]));
   }
 
@@ -459,125 +487,161 @@ export default function HomePage() {
       </section>
 
       <div className="toolbar" id="listings">
-        <div className="wrap tools">
-          {(["beginner", "intermediate", "advanced"] as const).map((level) => (
-            <button
-              key={level}
-              type="button"
-              className="filter"
-              aria-pressed={levels.has(level)}
-              onClick={() => toggleLevel(level)}
-            >
-              {level[0].toUpperCase() + level.slice(1)}
-            </button>
-          ))}
-          <span className="divider" />
-          <button
-            type="button"
-            className="filter"
-            aria-pressed={flags.has("solo")}
-            onClick={() => toggleFlag("solo")}
-          >
-            Solo allowed
-          </button>
-          <button
-            type="button"
-            className="filter"
-            aria-pressed={flags.has("starter")}
-            onClick={() => toggleFlag("starter")}
-          >
-            Starter code
-          </button>
-          <button
-            type="button"
-            className="filter"
-            aria-pressed={flags.has("india")}
-            onClick={() => toggleFlag("india")}
-          >
-            Open in India
-          </button>
-          <button
-            type="button"
-            className="filter"
-            aria-pressed={flags.has("prize")}
-            onClick={() => toggleFlag("prize")}
-          >
-            Has prize
-          </button>
-          <button
-            type="button"
-            className="filter"
-            aria-pressed={flags.has("students")}
-            onClick={() => toggleFlag("students")}
-          >
-            Students only
-          </button>
-          <button
-            type="button"
-            className="filter"
-            aria-pressed={flags.has("unstop")}
-            onClick={() => toggleFlag("unstop")}
-          >
-            Include Unstop
-          </button>
-          <button
-            type="button"
-            className="filter"
-            aria-pressed={flags.has("farHorizon")}
-            onClick={() => toggleFlag("farHorizon")}
-          >
-            Farther than 90 days
-          </button>
-          <span className="divider" aria-hidden />
-          <span className="count" style={{ paddingRight: 4 }}>
-            Sort
-          </span>
-          <button
-            type="button"
-            className="filter"
-            aria-pressed={sort === "soon"}
-            onClick={() => setSort("soon")}
-          >
-            Time remaining
-          </button>
-          <button
-            type="button"
-            className="filter"
-            aria-pressed={sort === "launch"}
-            onClick={() => setSort("launch")}
-          >
-            Launch date
-          </button>
-          <button
-            type="button"
-            className="filter"
-            aria-pressed={sort === "prize"}
-            onClick={() => setSort("prize")}
-          >
-            Prize money
-          </button>
-          <button
-            type="button"
-            className="filter"
-            aria-pressed={sort === "interest"}
-            onClick={() => setSort("interest")}
-          >
-            Interested
-          </button>
-          {matchOn && (
-            <button
-              type="button"
-              className="filter"
-              aria-pressed={sort === "fit"}
-              onClick={() => setSort("fit")}
-            >
-              Best match
-            </button>
-          )}
-          <div className="right">
-            <span className="count">
-              {loading ? "…" : `${sorted.length} of ${stats.open}`}
-            </span>
+        <div className="wrap toolbar-stack">
+          <div className="tool-row">
+            <span className="tool-label">Level</span>
+            <div className="tools">
+              {(["beginner", "intermediate", "advanced"] as const).map((level) => (
+                <button
+                  key={level}
+                  type="button"
+                  className="filter"
+                  aria-pressed={levels.has(level)}
+                  onClick={() => toggleLevel(level)}
+                >
+                  {level[0].toUpperCase() + level.slice(1)}
+                </button>
+              ))}
+              <span className="divider" aria-hidden />
+              <button
+                type="button"
+                className="filter"
+                aria-pressed={flags.has("solo")}
+                onClick={() => toggleFlag("solo")}
+              >
+                Solo allowed
+              </button>
+              <button
+                type="button"
+                className="filter"
+                aria-pressed={flags.has("starter")}
+                onClick={() => toggleFlag("starter")}
+              >
+                Starter code
+              </button>
+              <button
+                type="button"
+                className="filter"
+                aria-pressed={flags.has("india")}
+                onClick={() => toggleFlag("india")}
+              >
+                Open in India
+              </button>
+              <button
+                type="button"
+                className="filter"
+                aria-pressed={flags.has("prize")}
+                onClick={() => toggleFlag("prize")}
+              >
+                Has prize
+              </button>
+              <button
+                type="button"
+                className="filter"
+                aria-pressed={flags.has("students")}
+                onClick={() => toggleFlag("students")}
+              >
+                Students only
+              </button>
+              <button
+                type="button"
+                className="filter"
+                aria-pressed={flags.has("farHorizon")}
+                onClick={() => toggleFlag("farHorizon")}
+              >
+                Farther than 90 days
+              </button>
+            </div>
+          </div>
+
+          <div className="tool-row">
+            <span className="tool-label">Track</span>
+            <div className="tools">
+              {DOMAIN_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  className="filter"
+                  aria-pressed={domains.has(option.value)}
+                  onClick={() => toggleDomain(option.value)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="tool-row">
+            <span className="tool-label">Platform</span>
+            <div className="tools">
+              {PLATFORM_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  className="filter"
+                  aria-pressed={platforms.has(option.value)}
+                  onClick={() => togglePlatform(option.value)}
+                >
+                  {option.label}
+                  {sourceCountByPlatform[option.value]
+                    ? ` · ${sourceCountByPlatform[option.value]}`
+                    : ""}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="tool-row">
+            <span className="tool-label">Sort</span>
+            <div className="tools">
+              <button
+                type="button"
+                className="filter"
+                aria-pressed={sort === "soon"}
+                onClick={() => setSort("soon")}
+              >
+                Time remaining
+              </button>
+              <button
+                type="button"
+                className="filter"
+                aria-pressed={sort === "launch"}
+                onClick={() => setSort("launch")}
+              >
+                Launch date
+              </button>
+              <button
+                type="button"
+                className="filter"
+                aria-pressed={sort === "prize"}
+                onClick={() => setSort("prize")}
+              >
+                Prize money
+              </button>
+              <button
+                type="button"
+                className="filter"
+                aria-pressed={sort === "interest"}
+                onClick={() => setSort("interest")}
+              >
+                Interested
+              </button>
+              {matchOn && (
+                <button
+                  type="button"
+                  className="filter"
+                  aria-pressed={sort === "fit"}
+                  onClick={() => setSort("fit")}
+                >
+                  Best match
+                </button>
+              )}
+              <div className="right">
+                <span className="count">
+                  {loading ? "…" : `${sorted.length} of ${stats.open}`}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </div>

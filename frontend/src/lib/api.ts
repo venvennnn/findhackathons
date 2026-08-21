@@ -254,15 +254,22 @@ export const TEAM_ROLE_OPTIONS: { value: TeamRole; label: string }[] = [
 ];
 
 export const DOMAIN_OPTIONS: { value: DomainCategory; label: string }[] = [
-  { value: "web-dev", label: "Web Dev" },
-  { value: "tabular", label: "Tabular ML" },
-  { value: "nlp", label: "NLP" },
-  { value: "cv", label: "Computer Vision" },
+  { value: "tabular", label: "Tabular" },
+  { value: "nlp", label: "NLP / text" },
+  { value: "cv", label: "Image / vision" },
+  { value: "web-dev", label: "Web" },
   { value: "mobile", label: "Mobile" },
-  { value: "hardware", label: "Hardware" },
-  { value: "game-dev", label: "Game Dev" },
   { value: "web3", label: "Web3" },
+  { value: "hardware", label: "Hardware" },
+  { value: "game-dev", label: "Games" },
   { value: "other", label: "Other" },
+];
+
+export const PLATFORM_OPTIONS: { value: SourcePlatform; label: string }[] = [
+  { value: "kaggle", label: "Kaggle" },
+  { value: "devpost", label: "Devpost" },
+  { value: "devfolio", label: "Devfolio" },
+  { value: "unstop", label: "Unstop" },
 ];
 
 export const MATCH_EXAMPLES = [

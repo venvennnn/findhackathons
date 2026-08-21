@@ -32,11 +32,11 @@ export function domainLabel(domain: string): string {
     "web-dev": "web",
     mobile: "mobile",
     nlp: "nlp",
-    cv: "cv",
+    cv: "image",
     tabular: "tabular",
     web3: "web3",
     hardware: "hardware",
-    "game-dev": "game",
+    "game-dev": "games",
     other: "other",
   };
   return map[domain] || domain;
