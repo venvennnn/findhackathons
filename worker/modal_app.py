@@ -157,5 +157,11 @@ def ingest_kaggle_only():
 
 @app.local_entrypoint()
 def main():
-    """Run once locally/remotely: modal run worker/modal_app.py"""
-    print(_run_pipeline(limit_per_source=5, kaggle_limit=50))
+    """Run once on Modal (not locally) so secrets + Railway ingest apply.
+
+    Usage: modal run modal_app.py
+    """
+    # IMPORTANT: call .remote() so findhackathons-secrets are injected and
+    # upserts go to BACKEND_API_URL (Railway). A bare _run_pipeline() call
+    # runs on the laptop and falls back to local sqlite.
+    print(ingest_cron.remote())
