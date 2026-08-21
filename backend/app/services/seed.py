@@ -15,11 +15,12 @@ def _deadline(days: int) -> datetime:
 
 
 # Relative day offsets keep demo data evergreen across restarts.
+# URLs use example.com so empty local DBs never ship broken host links.
 SEED_SPECS: list[dict] = [
     {
         "title": "CampusCode India: Beginner Web Sprint",
         "organizer": "Devfolio Campus",
-        "url": "https://devfolio.co/hackathons/campuscode-india-beginner",
+        "url": "https://example.com/hackathons/campuscode-india-beginner",
         "source": SourcePlatform.devfolio,
         "deadline_days": 28,
         "domains": ["web-dev"],
@@ -38,7 +39,7 @@ SEED_SPECS: list[dict] = [
     {
         "title": "Unstop Freshers ML Challenge",
         "organizer": "Unstop",
-        "url": "https://unstop.com/hackathons/freshers-ml-challenge",
+        "url": "https://example.com/hackathons/freshers-ml-challenge",
         "source": SourcePlatform.unstop,
         "deadline_days": 35,
         "domains": ["tabular", "nlp"],
@@ -52,12 +53,12 @@ SEED_SPECS: list[dict] = [
         "has_starter_code": True,
         "confidence": ConfidenceLevel.high,
         "raw_snippet": "Classify customer tickets with a starter notebook.",
-        "team_channel_url": "https://unstop.com/hackathons/freshers-ml-challenge",
+        "team_channel_url": "https://example.com/hackathons/freshers-ml-challenge",
     },
     {
         "title": "Kaggle Playground: Tabular Forecasting",
         "organizer": "Kaggle",
-        "url": "https://www.kaggle.com/competitions/playground-tabular-forecasting",
+        "url": "https://example.com/competitions/playground-tabular-forecasting",
         "source": SourcePlatform.kaggle,
         "deadline_days": 45,
         "domains": ["tabular"],
@@ -75,7 +76,7 @@ SEED_SPECS: list[dict] = [
     {
         "title": "Devpost AI for Good Weekend",
         "organizer": "Devpost",
-        "url": "https://devpost.com/software/ai-for-good-weekend",
+        "url": "https://example.com/hackathons/ai-for-good-weekend",
         "source": SourcePlatform.devpost,
         "deadline_days": 21,
         "domains": ["nlp", "web-dev"],
@@ -89,12 +90,12 @@ SEED_SPECS: list[dict] = [
         "has_starter_code": True,
         "confidence": ConfidenceLevel.medium,
         "raw_snippet": "Ship an NLP-powered civic tool in 48 hours.",
-        "team_channel_url": "https://devpost.com/software/ai-for-good-weekend",
+        "team_channel_url": "https://example.com/hackathons/ai-for-good-weekend",
     },
     {
         "title": "Web3 Campus Buildathon — Mumbai",
         "organizer": "Devfolio",
-        "url": "https://devfolio.co/hackathons/web3-campus-mumbai",
+        "url": "https://example.com/hackathons/web3-campus-mumbai",
         "source": SourcePlatform.devfolio,
         "deadline_days": 40,
         "domains": ["web3", "web-dev"],
@@ -112,7 +113,7 @@ SEED_SPECS: list[dict] = [
     {
         "title": "Computer Vision Defect Detection Sprint",
         "organizer": "Kaggle",
-        "url": "https://www.kaggle.com/competitions/cv-defect-detection",
+        "url": "https://example.com/competitions/cv-defect-detection",
         "source": SourcePlatform.kaggle,
         "deadline_days": 60,
         "domains": ["cv"],
@@ -130,7 +131,7 @@ SEED_SPECS: list[dict] = [
     {
         "title": "Unstop Mobile App Ideathon",
         "organizer": "Unstop",
-        "url": "https://unstop.com/hackathons/mobile-app-ideathon",
+        "url": "https://example.com/hackathons/mobile-app-ideathon",
         "source": SourcePlatform.unstop,
         "deadline_days": 18,
         "domains": ["mobile"],
@@ -148,7 +149,7 @@ SEED_SPECS: list[dict] = [
     {
         "title": "LLM Alignment Research Challenge",
         "organizer": "Devpost Labs",
-        "url": "https://devpost.com/software/llm-alignment-research",
+        "url": "https://example.com/hackathons/llm-alignment-research",
         "source": SourcePlatform.devpost,
         "deadline_days": 50,
         "domains": ["nlp"],
@@ -166,7 +167,7 @@ SEED_SPECS: list[dict] = [
     {
         "title": "Game Jam India Online",
         "organizer": "Devfolio",
-        "url": "https://devfolio.co/hackathons/game-jam-india-online",
+        "url": "https://example.com/hackathons/game-jam-india-online",
         "source": SourcePlatform.devfolio,
         "deadline_days": 25,
         "domains": ["game-dev"],
@@ -184,7 +185,7 @@ SEED_SPECS: list[dict] = [
     {
         "title": "Quant Finance Fraud Detection Hack",
         "organizer": "Unstop x FinTech Collective",
-        "url": "https://unstop.com/hackathons/quant-fraud-detection",
+        "url": "https://example.com/hackathons/quant-fraud-detection",
         "source": SourcePlatform.unstop,
         "deadline_days": 32,
         "domains": ["tabular", "other"],

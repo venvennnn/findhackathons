@@ -19,23 +19,28 @@ HEADERS = {
 }
 
 
-def fetch_devfolio(limit: int = 80) -> List[RawListing]:
+def fetch_devfolio(limit: int = 120) -> List[RawListing]:
     now = datetime.now(timezone.utc)
-    rows: List[RawListing] = []
-    for src in _fetch_raw("application_open"):
-        item = _normalize(src)
-        if not item:
-            continue
-        if item.get("is_restricted"):
-            continue
-        deadline = item.get("_deadline_dt")
-        if deadline and deadline <= now:
-            continue
-        rows.append(_to_raw(item))
+    rows: Dict[str, RawListing] = {}
+    for app_type in ("application_open", "upcoming"):
+        for src in _fetch_raw(app_type):
+            item = _normalize(src)
+            if not item:
+                continue
+            if item.get("is_restricted"):
+                continue
+            deadline = item.get("_deadline_dt")
+            if deadline and deadline <= now:
+                continue
+            listing = _to_raw(item)
+            rows.setdefault(listing.url, listing)
+            if len(rows) >= limit:
+                break
         if len(rows) >= limit:
             break
-    print(f"[devfolio] fetched {len(rows)}")
-    return rows
+    out = list(rows.values())
+    print(f"[devfolio] fetched {len(out)}")
+    return out
 
 
 def _parse_dt(raw: Any) -> Optional[datetime]:
@@ -120,9 +125,13 @@ def _normalize(src: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         if t
     ]
     subdomain = setting.get("subdomain") or slug
+    subdomain = str(subdomain).strip().strip(".")
+    if not subdomain or "/" in subdomain:
+        return None
+    url = f"https://{subdomain}.devfolio.co"
     return {
         "title": str(name),
-        "url": f"https://{subdomain}.devfolio.co",
+        "url": url,
         "organizer": src.get("hosted_by") or "Devfolio",
         "source": "devfolio",
         "deadline_utc": deadline.isoformat() if deadline else None,
