@@ -139,6 +139,28 @@ class AlertSubscribeResponse(BaseModel):
     profile_id: str
 
 
+class AlertUnsubscribe(BaseModel):
+    token: str = Field(min_length=8, max_length=64)
+
+
+class AlertUnsubscribeResponse(BaseModel):
+    ok: bool
+    message: str
+
+
+class WeeklyDigestResponse(BaseModel):
+    ok: bool
+    dry_run: bool = False
+    configured: bool = False
+    examined: int = 0
+    sent: int = 0
+    skipped_cooldown: int = 0
+    skipped_empty: int = 0
+    skipped_no_profile: int = 0
+    failed: int = 0
+    errors: List[str] = Field(default_factory=list)
+
+
 class ListingInterestCreate(BaseModel):
     email: EmailStr
     profile_id: Optional[str] = None

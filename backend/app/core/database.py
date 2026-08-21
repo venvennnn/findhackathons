@@ -1,5 +1,6 @@
 from collections.abc import Generator
 import time
+from uuid import uuid4
 
 from sqlalchemy import inspect, text
 from sqlmodel import Session, SQLModel, create_engine
@@ -34,6 +35,11 @@ _COLUMN_MIGRATIONS = (
         "user_profiles",
         "team_needs",
         "ALTER TABLE user_profiles ADD COLUMN team_needs JSON",
+    ),
+    (
+        "alert_subscriptions",
+        "unsubscribe_token",
+        "ALTER TABLE alert_subscriptions ADD COLUMN unsubscribe_token VARCHAR",
     ),
 )
 
@@ -96,6 +102,34 @@ def ensure_schema() -> None:
                 continue
             conn.execute(text(ddl))
             print(f"[db] added column {table}.{column}")
+
+        # Backfill unsubscribe tokens for rows created before the column existed.
+        try:
+            if "alert_subscriptions" in inspector.get_table_names():
+                # Re-inspect so a column added above is visible.
+                fresh = inspect(engine)
+                cols = {col["name"] for col in fresh.get_columns("alert_subscriptions")}
+                if "unsubscribe_token" in cols:
+                    rows = conn.execute(
+                        text(
+                            "SELECT id FROM alert_subscriptions "
+                            "WHERE unsubscribe_token IS NULL OR unsubscribe_token = ''"
+                        )
+                    ).fetchall()
+                    for (row_id,) in rows:
+                        conn.execute(
+                            text(
+                                "UPDATE alert_subscriptions "
+                                "SET unsubscribe_token = :token WHERE id = :id"
+                            ),
+                            {"token": str(uuid4()), "id": row_id},
+                        )
+                    if rows:
+                        print(
+                            f"[db] backfilled unsubscribe_token for {len(rows)} subscriptions"
+                        )
+        except Exception as exc:  # noqa: BLE001
+            print(f"[db] unsubscribe_token backfill skipped/failed: {exc}")
 
         if dialect == "postgresql":
             try:

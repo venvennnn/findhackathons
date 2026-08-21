@@ -1,9 +1,11 @@
-"""Modal.com cron worker: scrape → hash → enrich → upsert.
+"""Modal.com cron worker: scrape → hash → enrich → upsert + Friday digests.
 
 Deploy:
   modal deploy worker/modal_app.py
 
-Schedule: every 6 hours.
+Schedules:
+  - ingest every 6 hours
+  - weekly alerts Friday 02:30 UTC (≈ 08:00 IST)
 """
 
 from __future__ import annotations
@@ -186,6 +188,59 @@ def ingest_kaggle_only():
         stats[status] = stats.get(status, 0) + 1
     print(f"[kaggle-only] done: {stats}")
     return stats
+
+
+@app.function(
+    schedule=modal.Cron("30 2 * * 5"),  # Friday 02:30 UTC ≈ 08:00 IST
+    secrets=[secrets],
+    timeout=60 * 15,
+    memory=512,
+)
+def weekly_alerts_cron():
+    """Trigger Railway to email Friday digests to active subscribers."""
+    import httpx
+
+    api_url = (os.getenv("BACKEND_API_URL") or "").rstrip("/")
+    token = (os.getenv("INGEST_TOKEN") or "").strip()
+    if not api_url:
+        raise RuntimeError("BACKEND_API_URL missing from findhackathons-secrets")
+    if not token:
+        raise RuntimeError("INGEST_TOKEN missing from findhackathons-secrets")
+
+    url = f"{api_url}/api/internal/alerts/send-weekly"
+    print(f"[weekly-alerts] POST {url}")
+    response = httpx.post(
+        url,
+        headers={"X-Ingest-Token": token},
+        timeout=60 * 14,
+    )
+    print(f"[weekly-alerts] status={response.status_code} body={response.text[:800]}")
+    response.raise_for_status()
+    return response.json()
+
+
+@app.function(secrets=[secrets], timeout=60 * 15, memory=512)
+def weekly_alerts_once(dry_run: bool = False, force: bool = False):
+    """Manual digests: modal run worker/modal_app.py::weekly_alerts_once"""
+    import httpx
+
+    api_url = (os.getenv("BACKEND_API_URL") or "").rstrip("/")
+    token = (os.getenv("INGEST_TOKEN") or "").strip()
+    params = []
+    if dry_run:
+        params.append("dry_run=true")
+    if force:
+        params.append("force=true")
+    qs = ("?" + "&".join(params)) if params else ""
+    url = f"{api_url}/api/internal/alerts/send-weekly{qs}"
+    response = httpx.post(
+        url,
+        headers={"X-Ingest-Token": token},
+        timeout=60 * 14,
+    )
+    print(f"[weekly-alerts-once] {response.status_code} {response.text[:800]}")
+    response.raise_for_status()
+    return response.json()
 
 
 @app.local_entrypoint()

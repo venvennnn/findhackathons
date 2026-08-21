@@ -17,6 +17,8 @@ from app.models.enums import (
 from app.models.schemas import (
     AlertSubscribe,
     AlertSubscribeResponse,
+    AlertUnsubscribe,
+    AlertUnsubscribeResponse,
     DemandDashboard,
     IngestListing,
     IngestResponse,
@@ -31,7 +33,9 @@ from app.models.schemas import (
     ProfileRead,
     SourceCount,
     SourcesResponse,
+    WeeklyDigestResponse,
 )
+from app.services.alerts import deactivate_by_token, ensure_unsubscribe_token, send_weekly_digests
 from app.services.matching import discord_team_url, listing_to_read, match_hackathons
 from app.services.teammates import (
     build_demand_dashboard,
@@ -242,13 +246,14 @@ def list_listings(
     elif students_only is False:
         statement = statement.where(Listing.students_only == False)  # noqa: E712
 
-    # Default product horizon: closing within 90 days (known deadlines only).
+    # Default product horizon: closing within 90 days.
+    # Keep unknown deadlines visible (manual submits often omit them).
     if max_deadline_days and max_deadline_days > 0:
         now = datetime.now(timezone.utc)
         cutoff = now + timedelta(days=max_deadline_days)
         statement = statement.where(
-            Listing.deadline_utc != None,  # noqa: E711
-            col(Listing.deadline_utc) <= cutoff,
+            (Listing.deadline_utc == None)  # noqa: E711
+            | (col(Listing.deadline_utc) <= cutoff)
         )
 
     listings = list(session.exec(statement.limit(limit * 5)).all())
@@ -543,6 +548,7 @@ def create_profile(
         if existing:
             existing.profile_id = profile.id
             existing.is_active = True
+            ensure_unsubscribe_token(existing)
         else:
             session.add(
                 AlertSubscription(email=str(payload.email), profile_id=profile.id, is_active=True)
@@ -739,6 +745,7 @@ def subscribe_alerts(
     if existing:
         existing.profile_id = profile.id
         existing.is_active = True
+        ensure_unsubscribe_token(existing)
     else:
         session.add(
             AlertSubscription(
@@ -761,3 +768,48 @@ def subscribe_alerts(
         message=message,
         profile_id=profile.id,
     )
+
+
+@router.post("/alerts/unsubscribe", response_model=AlertUnsubscribeResponse)
+def unsubscribe_alerts(
+    payload: AlertUnsubscribe,
+    session: Session = Depends(get_session),
+) -> AlertUnsubscribeResponse:
+    ok = deactivate_by_token(session, payload.token)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Subscription not found")
+    return AlertUnsubscribeResponse(
+        ok=True,
+        message="You're unsubscribed. No more Friday emails.",
+    )
+
+
+@router.get("/alerts/unsubscribe", response_model=AlertUnsubscribeResponse)
+def unsubscribe_alerts_get(
+    token: str = Query(..., min_length=8, max_length=64),
+    session: Session = Depends(get_session),
+) -> AlertUnsubscribeResponse:
+    """One-click link target (also usable from email clients that prefer GET)."""
+    ok = deactivate_by_token(session, token)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Subscription not found")
+    return AlertUnsubscribeResponse(
+        ok=True,
+        message="You're unsubscribed. No more Friday emails.",
+    )
+
+
+@router.post("/internal/alerts/send-weekly", response_model=WeeklyDigestResponse)
+def send_weekly_alerts(
+    dry_run: bool = Query(default=False),
+    force: bool = Query(
+        default=False,
+        description="Ignore the 6-day cooldown and re-send to everyone.",
+    ),
+    session: Session = Depends(get_session),
+    x_ingest_token: Optional[str] = Header(default=None),
+) -> WeeklyDigestResponse:
+    """Friday digest sender. Protected with the same token as ingest."""
+    _require_ingest_token(x_ingest_token)
+    result = send_weekly_digests(session, dry_run=dry_run, force=force)
+    return WeeklyDigestResponse(**result)

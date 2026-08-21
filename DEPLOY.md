@@ -46,6 +46,9 @@ This monorepo includes a **root `Dockerfile` + `railway.toml`**, so Railway can 
 | `OPENAI_API_KEY` | Anthropic/Claude key (`sk-ant-…`) — env name kept as `OPENAI_API_KEY` | No (heuristic ranking works without it) |
 | `OPENAI_MODEL` | `claude-haiku-4-5-20251001` | No |
 | `ENVIRONMENT` | `production` | No |
+| `RESEND_API_KEY` | Resend API key for Friday digests | Yes (for weekly emails) |
+| `EMAIL_FROM` | `FindHackathons <alerts@yourdomain.com>` (must be verified in Resend) | Yes with Resend |
+| `APP_BASE_URL` | Public site URL, e.g. `https://findhackathons-six.vercel.app` | Yes (unsubscribe links) |
 
 5. **Redeploy** (Deployments → Redeploy), then open:
    - `https://<your-railway-domain>/api/health`
@@ -108,8 +111,10 @@ modal secret create findhackathons-secrets \
   BACKEND_API_URL=https://<your-railway-domain> \
   INGEST_TOKEN=<same-as-railway>
 
-modal deploy modal_app.py   # schedule: every 6 hours
-modal run modal_app.py      # one-shot test
+modal deploy modal_app.py   # schedules: ingest every 6h + Friday digests
+modal run modal_app.py      # one-shot ingest test
+# One-shot digests (after RESEND_API_KEY is on Railway):
+# modal run modal_app.py::weekly_alerts_once
 ```
 
 Secrets expected by `worker/modal_app.py`:
@@ -123,6 +128,25 @@ Secrets expected by `worker/modal_app.py`:
   Create a token at https://www.kaggle.com/settings → API.
 
 The worker posts enriched listings to `POST /api/internal/ingest`.
+Friday morning (≈08:00 IST) Modal calls `POST /api/internal/alerts/send-weekly`
+so Railway can match subscribers and send via Resend.
+
+### Weekly email digests
+
+1. Create a free [Resend](https://resend.com) account and API key.
+2. Verify a sending domain (or use Resend’s test `onboarding@resend.dev` to your own inbox only).
+3. On **Railway**, set:
+   - `RESEND_API_KEY`
+   - `EMAIL_FROM` (verified address)
+   - `APP_BASE_URL` = your Vercel URL (used in unsubscribe links)
+4. Redeploy Railway, then `modal deploy modal_app.py` so the Friday cron is registered.
+5. Test once:
+   ```bash
+   curl -X POST -H "X-Ingest-Token: $INGEST_TOKEN" \
+     "https://YOUR-RAILWAY-URL/api/internal/alerts/send-weekly?force=true"
+   ```
+   Or dry-run without sending: add `dry_run=true`.
+
 The public feed defaults to cash-prize competitions; Knowledge / no-prize comps
 are ingested but only shown when the user selects “Include no-prize”.
 
@@ -156,7 +180,9 @@ After deploy:
 2. Open the Vercel URL → listings appear
 3. Use **Match me** → shortlist returns
 4. Subscribe with a test email → `/api/alerts/subscribe` succeeds
-5. (Optional) `modal run modal_app.py` → health `listings_count` may increase
+5. (Optional) Force a digest: `POST /api/internal/alerts/send-weekly?force=true` with ingest token
+6. Open unsubscribe link from the email → `/unsubscribe?token=…` confirms
+7. (Optional) `modal run modal_app.py` → health `listings_count` may increase
 
 ---
 
