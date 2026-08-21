@@ -45,6 +45,8 @@ export interface Listing {
   teammate_interest_count?: number | null;
   /** True when someone added/corrected this listing via the public form. */
   community_submitted?: boolean;
+  /** When the listing was first added to our feed (used for launch-date sort). */
+  created_at?: string | null;
 }
 
 export interface MatchResponse {

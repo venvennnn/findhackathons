@@ -72,6 +72,8 @@ class ListingRead(BaseModel):
     teammate_interest_count: Optional[int] = None
     # True when someone added/corrected this listing via the public form.
     community_submitted: bool = False
+    # When we first ingested / launched the listing in the feed.
+    created_at: Optional[datetime] = None
 
 
 class ProfileCreate(BaseModel):
