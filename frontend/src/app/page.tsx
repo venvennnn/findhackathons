@@ -716,7 +716,7 @@ export default function HomePage() {
                 </div>
                 <div className="card-foot">
                   <span className={`prize${prize ? "" : " none"}`}>
-                    {formatPrize(listing.prize_pool_usd)}
+                    {formatPrize(listing.prize_pool_usd, listing.prize_text)}
                   </span>
                   <span className="effort">{effortEstimate(listing)}</span>
                 </div>

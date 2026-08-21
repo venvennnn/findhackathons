@@ -643,6 +643,8 @@ def ingest_listing(
         existing.team_size_max = payload.team_size_max
         existing.requires_travel = payload.requires_travel
         existing.prize_pool_usd = payload.prize_pool_usd
+        if payload.prize_text is not None:
+            existing.prize_text = payload.prize_text
         existing.has_starter_code = payload.has_starter_code
         existing.confidence = payload.confidence
         existing.content_hash = payload.content_hash
@@ -670,6 +672,7 @@ def ingest_listing(
         team_size_max=payload.team_size_max,
         requires_travel=payload.requires_travel,
         prize_pool_usd=payload.prize_pool_usd,
+        prize_text=payload.prize_text,
         has_starter_code=payload.has_starter_code,
         confidence=payload.confidence,
         content_hash=payload.content_hash,

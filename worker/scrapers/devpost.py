@@ -95,10 +95,15 @@ def parse_dates(raw: Any) -> Tuple[Optional[datetime], Optional[datetime]]:
     return None, None
 
 
-def parse_prize(raw: Any) -> Tuple[Optional[str], Optional[int]]:
-    text = _strip_html(raw)
-    digits = re.sub(r"[^\d]", "", text)
-    return (text or None), (int(digits) if digits else None)
+def parse_prize(raw: Any) -> Tuple[Optional[str], Optional[int], Optional[str]]:
+    """Return (raw_text, prize_pool_usd, prize_text_display)."""
+    from scrapers.prizes import parse_prize_money, _strip_html as strip
+
+    text = strip(raw) or None
+    parsed = parse_prize_money(raw)
+    if not parsed:
+        return text, None, None
+    return text, parsed.amount_usd, parsed.display
 
 
 def _fetch_raw(status: str = "open", max_pages: int = 40, delay: float = 0.6) -> Iterator[Dict[str, Any]]:
@@ -159,7 +164,7 @@ def _normalize(raw: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         return None
 
     _start, end = parse_dates(_get(raw, "submission_period_dates"))
-    prize_text, prize_value = parse_prize(_get(raw, "prize_amount"))
+    prize_text, prize_usd, prize_display = parse_prize(_get(raw, "prize_amount"))
     disp = _get(raw, "displayed_location", default={}) or {}
     loc = _strip_html(disp.get("location")) if isinstance(disp, dict) else None
     is_online = (not loc) or loc.lower() == "online"
@@ -170,7 +175,7 @@ def _normalize(raw: Dict[str, Any]) -> Optional[Dict[str, Any]]:
             if t
         }
     )
-    floor = "advanced" if (prize_value or 0) >= 50_000 else "intermediate"
+    floor = "advanced" if (prize_usd or 0) >= 50_000 else "intermediate"
     themes_list = [str(t).lower() for t in themes]
     students_only = _looks_students_only(title, themes_list, loc)
 
@@ -180,8 +185,9 @@ def _normalize(raw: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         "organizer": "Devpost",
         "source": "devpost",
         "deadline_utc": end.isoformat() if end else None,
-        "prize_pool_usd": prize_value,
-        "has_cash_prize": bool(prize_value and prize_value > 0),
+        "prize_pool_usd": prize_usd,
+        "prize_text": prize_display,
+        "has_cash_prize": bool(prize_usd and prize_usd > 0),
         "category": "hackathon",
         "has_starter_code": False,
         "team_size_max": None,

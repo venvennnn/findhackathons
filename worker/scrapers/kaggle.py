@@ -106,32 +106,7 @@ def fetch_kaggle(limit: int = 800) -> List[RawListing]:
     return listings[:limit]
 
 
-def parse_prize_usd(reward: Any) -> Optional[int]:
-    if reward is None:
-        return None
-    if isinstance(reward, dict):
-        quantity = reward.get("quantity")
-        if quantity is None:
-            return None
-        try:
-            amount = float(quantity)
-        except (TypeError, ValueError):
-            return None
-        return int(round(amount)) if amount > 0 else None
-
-    text = str(reward).strip()
-    if not text or REWARD_NON_CASH.match(text):
-        return None
-    match = REWARD_MONEY.search(text.replace(" ", "")) or REWARD_MONEY.search(text)
-    if not match:
-        return None
-    amount = float(match.group("amount").replace(",", ""))
-    suffix = (match.group("suffix") or "").lower()
-    if suffix == "k":
-        amount *= 1_000
-    elif suffix == "m":
-        amount *= 1_000_000
-    return int(round(amount)) if amount > 0 else None
+from scrapers.prizes import parse_prize_money, parse_prize_usd
 
 
 def _auth() -> Optional[Tuple[str, str]]:
@@ -271,7 +246,9 @@ def _normalize(raw: Dict[str, Any], *, is_community: bool) -> Optional[Dict[str,
     notebooks_only = bool(
         _get(raw, "isKernelsSubmissionsOnly", "is_kernels_submissions_only", default=False)
     )
-    prize = parse_prize_usd(reward)
+    prize_parsed = parse_prize_money(reward)
+    prize = prize_parsed.amount_usd if prize_parsed else None
+    prize_text = prize_parsed.display if prize_parsed else None
     if is_community:
         floor = "intermediate"
         reasoning = "Community host category is not a reliable difficulty signal."
@@ -288,6 +265,7 @@ def _normalize(raw: Dict[str, Any], *, is_community: bool) -> Optional[Dict[str,
         "deadline_utc": deadline.isoformat() if deadline else None,
         "_deadline_dt": deadline,
         "prize_pool_usd": prize,
+        "prize_text": prize_text,
         "has_cash_prize": bool(prize and prize > 0),
         "category": category,
         "has_starter_code": (not is_community and category == "gettingstarted") or notebooks_only,
