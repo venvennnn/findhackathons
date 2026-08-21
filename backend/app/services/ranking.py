@@ -73,15 +73,15 @@ def rank_listings_with_llm(
     listings: List[Listing],
     request: MatchRequest,
 ) -> List[RankedListing]:
-    """Rank with OpenAI when configured; fall back to heuristic on any failure."""
+    """Rank with Claude when OPENAI_API_KEY is set (Anthropic key); else heuristic."""
     settings = get_settings()
     if not settings.openai_api_key:
         return rank_listings_heuristic(listings, request)
 
     try:
-        from openai import OpenAI
+        from anthropic import Anthropic
 
-        client = OpenAI(api_key=settings.openai_api_key)
+        client = Anthropic(api_key=settings.openai_api_key)
         payload = [
             {
                 "id": listing.id,
@@ -103,26 +103,37 @@ def rank_listings_with_llm(
             "country": request.country,
         }
 
-        completion = client.chat.completions.create(
-            model=settings.openai_model,
+        model = settings.openai_model or "claude-haiku-4-5-20251001"
+        # If someone still has an old gpt-* default, remap to Claude.
+        if model.startswith("gpt-"):
+            model = "claude-haiku-4-5-20251001"
+
+        message = client.messages.create(
+            model=model,
+            max_tokens=1024,
             temperature=0.2,
-            response_format={"type": "json_object"},
+            system=(
+                "You rank hackathons for a developer. Return JSON only: "
+                '{"rankings":[{"id":"...","fit_reason":"one sentence","score":0-100}]} '
+                "for the top 5 best fits only. Be specific and beginner-friendly when relevant."
+            ),
             messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "You rank hackathons for a developer. Return JSON: "
-                        '{"rankings":[{"id":"...","fit_reason":"one sentence","score":0-100}]} '
-                        "for the top 5 best fits only. Be specific and beginner-friendly when relevant."
-                    ),
-                },
                 {
                     "role": "user",
                     "content": json.dumps({"profile": profile, "candidates": payload}),
                 },
             ],
         )
-        content = completion.choices[0].message.content or "{}"
+        content = ""
+        for block in message.content:
+            text = getattr(block, "text", None)
+            if text:
+                content += text
+        content = content.strip() or "{}"
+        if content.startswith("```"):
+            content = content.strip("`")
+            if content.startswith("json"):
+                content = content[4:].strip()
         data = json.loads(content)
         by_id = {listing.id: listing for listing in listings}
         ranked: List[RankedListing] = []

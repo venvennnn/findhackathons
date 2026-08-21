@@ -22,6 +22,7 @@ image = (
     .pip_install(
         "playwright==1.48.0",
         "instructor>=1.6.0",
+        "anthropic>=0.40.0",
         "openai>=1.54.0",
         "pydantic>=2.9.0",
         "httpx>=0.27.0",

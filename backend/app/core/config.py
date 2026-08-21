@@ -25,7 +25,8 @@ class Settings(BaseSettings):
 
     database_url: str = "sqlite:///./findhackathons.db"
     openai_api_key: str = ""
-    openai_model: str = "gpt-4o-mini"
+    # Env name kept for compatibility; value should be an Anthropic/Claude model id.
+    openai_model: str = "claude-haiku-4-5-20251001"
     cors_origins: str = "http://localhost:3000,https://findhackathons.com"
     environment: str = "development"
     app_name: str = "FindHackathons API"

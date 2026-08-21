@@ -4,7 +4,7 @@ Modal.com cron that runs every 6 hours:
 
 1. Fetch listings from Kaggle, Devpost, Devfolio, Unstop
 2. SHA-256 hash raw content (skip unchanged)
-3. Enrich (Kaggle uses deterministic structured mapping; others use OpenAI)
+3. Enrich (structured scraper fields first; otherwise Claude via `OPENAI_API_KEY`)
 4. Upsert through `POST /api/internal/ingest`
 
 ## Kaggle
@@ -25,7 +25,8 @@ comps are ingested but only shown when the user selects “Include no-prize”.
 ## Secrets (Modal secret name: `findhackathons-secrets`)
 
 - `KAGGLE_USERNAME` / `KAGGLE_KEY` (required for reliable Kaggle ingest)
-- `OPENAI_API_KEY` (required for non-Kaggle enrichment)
+- `OPENAI_API_KEY` — **Anthropic/Claude key** (`sk-ant-…`); env name unchanged on purpose
+- `OPENAI_MODEL` (optional Claude model id, default `claude-haiku-4-5-20251001`)
 - `BACKEND_API_URL` (e.g. `https://api.findhackathons.com`)
 - `INGEST_TOKEN` (shared with backend)
 - `DATABASE_URL` (optional direct DB fallback)
@@ -36,7 +37,7 @@ comps are ingested but only shown when the user selects “Include no-prize”.
 modal secret create findhackathons-secrets \
   KAGGLE_USERNAME=... \
   KAGGLE_KEY=... \
-  OPENAI_API_KEY=... \
+  OPENAI_API_KEY=sk-ant-... \
   BACKEND_API_URL=https://... \
   INGEST_TOKEN=...
 
