@@ -528,7 +528,10 @@ export default function HomePage() {
           >
             Farther than 90 days
           </button>
-          <span className="divider" />
+          <span className="divider" aria-hidden />
+          <span className="count" style={{ paddingRight: 4 }}>
+            Sort
+          </span>
           <button
             type="button"
             className="filter"
