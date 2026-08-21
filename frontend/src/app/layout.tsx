@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "FindHackathons — hackathons you can actually finish",
+  title:
+    "FindHackathons — open hackathons and ML competitions, ranked by effort",
   description:
-    "Active hackathons and data science competitions — Devpost, Kaggle, Devfolio, and more.",
+    "Live hackathons from Devpost, Kaggle and Devfolio with skill floor, eligibility and an honest weekend estimate. Describe yourself and get the nine worth entering.",
   metadataBase: new URL("https://findhackathons.com"),
 };
 

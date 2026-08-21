@@ -204,7 +204,8 @@ export default function HomePage() {
     const names = sourceRows
       .filter((row) => row.in_default_feed && row.count > 0)
       .map((row) => row.label);
-    return names.length ? names.join(", ") : "Devpost, Kaggle, Devfolio";
+    const core = names.length ? names.join(", ") : "Kaggle, Devpost, Devfolio";
+    return `${core}, and many others`;
   }, [sourceRows]);
 
   function toggleLevel(level: SkillLevel) {
