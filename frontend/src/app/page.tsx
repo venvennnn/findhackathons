@@ -602,6 +602,7 @@ export default function HomePage() {
                         </h3>
                         <p className="host">
                           {listing.organizer} · {listing.source}
+                          {listing.community_submitted ? " · added by someone" : ""}
                         </p>
                       </div>
                       <div className="count">
@@ -650,7 +651,8 @@ export default function HomePage() {
           <h2>From these sites</h2>
           <p>
             Default feed is Devpost, Kaggle, and Devfolio. Unstop is optional.
-            Community submissions show under &ldquo;Added by people.&rdquo;
+            Competitions people add still show under their real site (Kaggle,
+            Devpost, …), marked as added by someone.
           </p>
           <ul>
             <li>
@@ -663,7 +665,11 @@ export default function HomePage() {
               </button>
             </li>
             {sourceRows
-              .filter((row) => row.count > 0 || row.in_default_feed || row.source === "unstop")
+              .filter(
+                (row) =>
+                  row.source !== "manual" &&
+                  (row.count > 0 || row.in_default_feed || row.source === "unstop"),
+              )
               .map((row) => (
                 <li key={row.source}>
                   <button

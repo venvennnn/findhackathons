@@ -121,7 +121,7 @@ def test_manual_listing_submit_create_and_update():
         "/api/listings/submit",
         json={
             "title": "Campus AI Sprint",
-            "url": "https://example.com/campus-ai-sprint",
+            "url": "https://www.kaggle.com/competitions/campus-ai-sprint",
             "organizer": "IIT Club",
             "prize_pool_usd": 1500,
             "skill_floor": "beginner",
@@ -140,14 +140,20 @@ def test_manual_listing_submit_create_and_update():
     assert "Campus AI Sprint" in titles
 
     detail = client.get(f"/api/listings/{listing_id}").json()
-    assert detail["source"] == "manual"
+    assert detail["source"] == "kaggle"
+    assert detail["community_submitted"] is True
     assert detail["prize_pool_usd"] == 1500
+
+    sources = client.get("/api/sources").json()
+    labels = {row["source"]: row["label"] for row in sources["sources"]}
+    assert "manual" not in labels
+    assert "kaggle" in labels
 
     updated = client.post(
         "/api/listings/submit",
         json={
             "title": "Campus AI Sprint (corrected)",
-            "url": "https://example.com/campus-ai-sprint",
+            "url": "https://www.kaggle.com/competitions/campus-ai-sprint",
             "prize_pool_usd": 2000,
             "skill_floor": "intermediate",
         },
@@ -159,6 +165,39 @@ def test_manual_listing_submit_create_and_update():
     detail2 = client.get(f"/api/listings/{listing_id}").json()
     assert detail2["title"] == "Campus AI Sprint (corrected)"
     assert detail2["prize_pool_usd"] == 2000
+    assert detail2["source"] == "kaggle"
+    assert detail2["community_submitted"] is True
+
+
+def test_manual_listing_infers_devpost_and_other():
+    get_settings.cache_clear()
+    client, _ = _client_with_db()
+
+    devpost = client.post(
+        "/api/listings/submit",
+        json={
+            "title": "Devpost Weekend",
+            "url": "https://devpost.com/software/example-hack",
+            "prize_pool_usd": 500,
+        },
+    )
+    assert devpost.status_code == 200
+    detail = client.get(f"/api/listings/{devpost.json()['id']}").json()
+    assert detail["source"] == "devpost"
+    assert detail["community_submitted"] is True
+
+    other = client.post(
+        "/api/listings/submit",
+        json={
+            "title": "Weird Host Comp",
+            "url": "https://example.com/weird-host-comp",
+            "prize_pool_usd": 100,
+        },
+    )
+    assert other.status_code == 200
+    detail2 = client.get(f"/api/listings/{other.json()['id']}").json()
+    assert detail2["source"] == "other"
+    assert detail2["community_submitted"] is True
 
 
 def test_manual_listing_rejects_bad_url():

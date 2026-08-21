@@ -42,12 +42,13 @@ from app.services.teammates import (
 
 router = APIRouter()
 
-# Default feed: Devpost + Kaggle + Devfolio + community submissions.
-# Unstop is opt-in only.
+# Default feed: Devpost + Kaggle + Devfolio + other hosts people submit.
+# Unstop is opt-in only. Legacy `manual` rows stay visible until remapped.
 DEFAULT_FEED_SOURCES: List[SourcePlatform] = [
     SourcePlatform.kaggle,
     SourcePlatform.devpost,
     SourcePlatform.devfolio,
+    SourcePlatform.other,
     SourcePlatform.manual,
 ]
 
@@ -59,6 +60,29 @@ SOURCE_LABELS = {
     SourcePlatform.manual: "Added by people",
     SourcePlatform.other: "Other sites",
 }
+
+# Sidebar shows platforms — not a separate "Added by people" bucket.
+SIDEBAR_SOURCES: List[SourcePlatform] = [
+    SourcePlatform.kaggle,
+    SourcePlatform.devpost,
+    SourcePlatform.devfolio,
+    SourcePlatform.unstop,
+    SourcePlatform.other,
+]
+
+
+def _infer_source_from_url(url: str) -> SourcePlatform:
+    """Map a competition URL to its host platform for sidebar grouping."""
+    low = (url or "").lower()
+    if "kaggle.com" in low:
+        return SourcePlatform.kaggle
+    if "devpost.com" in low:
+        return SourcePlatform.devpost
+    if "devfolio.co" in low or "devfolio.com" in low:
+        return SourcePlatform.devfolio
+    if "unstop.com" in low:
+        return SourcePlatform.unstop
+    return SourcePlatform.other
 
 
 def _parse_sources(raw: Optional[str]) -> Optional[List[SourcePlatform]]:
@@ -247,22 +271,15 @@ def list_sources(
     tallies: dict[str, int] = {}
     for item in listings:
         key = item.source.value if hasattr(item.source, "value") else str(item.source)
+        # Fold legacy source=manual into "other" for the sidebar.
+        if key == SourcePlatform.manual.value:
+            key = SourcePlatform.other.value
         tallies[key] = tallies.get(key, 0) + 1
 
     default_set = {s.value for s in DEFAULT_FEED_SOURCES}
-    # Always surface known platforms (even at 0) so the sidebar is stable;
-    # append any unexpected keys (legacy "other" hosts people submitted).
-    ordered = [s.value for s in SourcePlatform]
-    for key in sorted(tallies):
-        if key not in ordered:
-            ordered.append(key)
-
     rows: List[SourceCount] = []
-    for key in ordered:
-        try:
-            platform = SourcePlatform(key)
-        except ValueError:
-            continue
+    for platform in SIDEBAR_SOURCES:
+        key = platform.value
         rows.append(
             SourceCount(
                 source=platform,
@@ -279,8 +296,14 @@ def submit_listing(
     payload: ManualListingSubmit,
     session: Session = Depends(get_session),
 ) -> ManualListingSubmitResponse:
-    """Public manual add/correct a competition (source=manual)."""
+    """Public manual add/correct a competition.
+
+    Source is inferred from the URL host (kaggle/devpost/…) so the listing
+    appears under that platform in the sidebar. community_submitted marks
+    that a person added it.
+    """
     url = payload.url.strip()
+    source = _infer_source_from_url(url)
     existing = session.exec(select(Listing).where(Listing.url == url)).first()
     now = utcnow()
     domains = [d.value for d in payload.domains] or ["other"]
@@ -296,7 +319,7 @@ def submit_listing(
         if existing:
             existing.title = payload.title
             existing.organizer = organizer
-            existing.source = SourcePlatform.manual
+            existing.source = source
             existing.deadline_utc = payload.deadline_utc
             existing.domains = domains
             existing.skill_floor = payload.skill_floor
@@ -311,6 +334,7 @@ def submit_listing(
             existing.has_starter_code = payload.has_starter_code
             existing.confidence = ConfidenceLevel.medium
             existing.raw_snippet = raw_snippet
+            existing.community_submitted = True
             existing.team_channel_url = existing.team_channel_url or discord_team_url()
             existing.is_active = True
             existing.updated_at = now
@@ -328,7 +352,7 @@ def submit_listing(
             title=payload.title,
             organizer=organizer,
             url=url,
-            source=SourcePlatform.manual,
+            source=source,
             deadline_utc=payload.deadline_utc,
             domains=domains,
             skill_floor=payload.skill_floor,
@@ -341,6 +365,7 @@ def submit_listing(
             has_starter_code=payload.has_starter_code,
             confidence=ConfidenceLevel.medium,
             raw_snippet=raw_snippet,
+            community_submitted=True,
             team_channel_url=discord_team_url(),
             is_active=True,
         )
@@ -370,6 +395,11 @@ def submit_listing(
             raise HTTPException(
                 status_code=503,
                 detail="Database is missing team_channel_url — restart the API to migrate, then retry.",
+            ) from exc
+        if "community_submitted" in detail.lower() and "does not exist" in detail.lower():
+            raise HTTPException(
+                status_code=503,
+                detail="Database is missing community_submitted — restart the API to migrate, then retry.",
             ) from exc
         print(f"[submit] failed: {exc}")
         raise HTTPException(

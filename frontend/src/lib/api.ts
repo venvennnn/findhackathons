@@ -43,6 +43,8 @@ export interface Listing {
   team_channel_url?: string | null;
   /** Ambient demand — only present once count clears the server threshold. */
   teammate_interest_count?: number | null;
+  /** True when someone added/corrected this listing via the public form. */
+  community_submitted?: boolean;
 }
 
 export interface MatchResponse {
@@ -225,6 +227,7 @@ export const DEFAULT_FEED_SOURCES: SourcePlatform[] = [
   "kaggle",
   "devpost",
   "devfolio",
+  "other",
   "manual",
 ];
 
