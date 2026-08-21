@@ -210,7 +210,7 @@ def list_listings(
         "Pass 0 to disable the horizon filter (show all open).",
     ),
     active_only: bool = True,
-    limit: int = Query(default=20, ge=1, le=100),
+    limit: int = Query(default=100, ge=1, le=2000),
     session: Session = Depends(get_session),
 ) -> List[ListingRead]:
     statement = select(Listing)
