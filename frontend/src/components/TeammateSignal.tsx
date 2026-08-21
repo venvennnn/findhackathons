@@ -6,7 +6,13 @@ import { Listing, expressListingInterest } from "@/lib/api";
 const DISCORD_FALLBACK =
   "https://discord.com/channels/1535536397463724062/1535536398093000708";
 
-export function TeammateSignal({ listing }: { listing: Listing }) {
+export function TeammateSignal({
+  listing,
+  onInterest,
+}: {
+  listing: Listing;
+  onInterest?: (count: number) => void;
+}) {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">(
@@ -26,6 +32,7 @@ export function TeammateSignal({ listing }: { listing: Listing }) {
       setMessage(result.message);
       setDiscordUrl(nextDiscord);
       setStatus("done");
+      onInterest?.(result.interest_count);
       window.open(nextDiscord, "_blank", "noopener,noreferrer");
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Could not save");

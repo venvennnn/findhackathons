@@ -265,16 +265,16 @@ export const DOMAIN_OPTIONS: { value: DomainCategory; label: string }[] = [
 
 export const MATCH_EXAMPLES = [
   {
-    label: "a student exploring DS",
-    text: "I'm a second-year CS student just getting into data science. I've done a Python course and one Kaggle tutorial, nothing real yet. I've got one free weekend and I mostly want to finish something and understand what I did.",
+    label: "A student exploring data science",
+    text: "Final-year student, decent at Python and pandas, no ML competitions yet. Looking for something tabular with starter code I can finish alone.",
   },
   {
-    label: "a credit risk DS moving into NLP",
-    text: "Credit risk data scientist, six years in banking. Very comfortable with tabular modelling, gradient boosting, calibration. I want to move sideways into NLP and I can give it a few weeks of evenings.",
+    label: "A credit risk DS moving into NLP",
+    text: "Credit risk data scientist, four years of tabular modelling, moving into NLP. Want something that stretches me.",
   },
   {
-    label: "a frontend dev building a portfolio",
-    text: "Final-year student in Chennai, I build React apps and want something for my portfolio that recruiters would actually recognise. One weekend, working solo, no budget.",
+    label: "A frontend dev building a portfolio",
+    text: "Frontend dev, React and Tailwind, building a portfolio. Happy to team up. Prize doesn't matter much.",
   },
 ];
 

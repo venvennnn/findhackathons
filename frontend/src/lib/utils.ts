@@ -23,21 +23,21 @@ export function runwaySpent(days: number | null): number {
 }
 
 export function formatPrize(amount?: number | null): string {
-  if (!amount) return "—";
+  if (!amount) return "No cash prize";
   return `$${amount.toLocaleString()}`;
 }
 
 export function domainLabel(domain: string): string {
   const map: Record<string, string> = {
-    "web-dev": "Web dev",
-    mobile: "Mobile",
-    nlp: "NLP",
-    cv: "Computer vision",
-    tabular: "Tabular ML",
-    web3: "Web3",
-    hardware: "Hardware",
-    "game-dev": "Game dev",
-    other: "Other",
+    "web-dev": "web",
+    mobile: "mobile",
+    nlp: "nlp",
+    cv: "cv",
+    tabular: "tabular",
+    web3: "web3",
+    hardware: "hardware",
+    "game-dev": "game",
+    other: "other",
   };
   return map[domain] || domain;
 }
@@ -56,6 +56,26 @@ export function finishScore(listing: Listing): number {
   if (listing.skill_floor === "beginner") score += 8;
   if (days < 5) score -= 20;
   return score;
+}
+
+/** Rough weekend cost — not scraped, derived from skill floor + team/starter. */
+export function effortEstimate(listing: Listing): string {
+  const solo = listing.team_size_max == null || listing.team_size_max <= 1;
+  if (listing.skill_floor === "beginner") {
+    return listing.has_starter_code || solo ? "~1 weekend" : "~2 weekends";
+  }
+  if (listing.skill_floor === "intermediate") {
+    return listing.has_starter_code ? "~3 weekends" : "~4 weekends";
+  }
+  return "~5 weekends";
+}
+
+export function isSoloFriendly(listing: Listing): boolean {
+  return listing.team_size_max == null || listing.team_size_max <= 1;
+}
+
+export function interestCount(listing: Listing): number {
+  return listing.teammate_interest_count ?? 0;
 }
 
 export { HORIZON_DAYS };

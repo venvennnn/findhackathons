@@ -40,74 +40,69 @@ export function AlertsSection({
   }
 
   return (
-    <section className="alerts" id="alerts">
-      <div className="wrap">
-        <div>
-          <h2>One email. Friday morning.</h2>
-          <p>
-            Five to eight hackathons that match your level and close in the next
-            month. Nothing else.
-          </p>
-        </div>
-        <div>
-          {status === "done" ? (
-            <div>
-              <p className="fineprint" style={{ color: "var(--moss)" }}>
-                {message}
+    <section className="band" id="alerts">
+      <div className="wrap inner">
+        <h2>One email. Friday morning.</h2>
+        <p className="sub">
+          Five to eight competitions that match your level and close inside a
+          month. Nothing else, ever.
+        </p>
+        {status === "done" ? (
+          <div>
+            <p className="note ok">{message}</p>
+            {lookingForTeam && (
+              <p className="note" style={{ marginTop: 10 }}>
+                <a
+                  className="teammate-link"
+                  href={DISCORD_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Open Discord → find teammates
+                </a>
               </p>
-              {lookingForTeam && (
-                <p className="fineprint" style={{ marginTop: 10 }}>
-                  <a
-                    className="teammate-link"
-                    href={DISCORD_URL}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Open Discord → find teammates
-                  </a>
-                </p>
-              )}
-            </div>
-          ) : (
-            <form className="form" onSubmit={onSubmit}>
+            )}
+          </div>
+        ) : (
+          <form onSubmit={onSubmit}>
+            <div className="inline">
+              <label className="sr" htmlFor="alert-email">
+                Your email
+              </label>
               <input
+                id="alert-email"
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@college.edu"
-                aria-label="Email address"
               />
-              <button type="submit" disabled={status === "loading"}>
+              <button type="submit" className="btn" disabled={status === "loading"}>
                 {status === "loading" ? "Saving…" : "Get Friday's list"}
               </button>
-              <label className="team-check">
-                <input
-                  type="checkbox"
-                  checked={lookingForTeam}
-                  onChange={(e) => setLookingForTeam(e.target.checked)}
-                />
-                <span>
-                  I&apos;m looking for teammates (we&apos;ll point you to
-                  Discord)
-                </span>
-              </label>
-            </form>
-          )}
-          {status === "error" ? (
-            <p className="fineprint" style={{ color: "var(--coral)" }}>
-              {message}
-            </p>
-          ) : (
-            <p className="fineprint">
-              No spam ·{" "}
-              <a className="tlink" href="/unsubscribe">
-                unsubscribe
-              </a>{" "}
-              in one click from any email
-            </p>
-          )}
-        </div>
+            </div>
+            <label className="team-check">
+              <input
+                type="checkbox"
+                checked={lookingForTeam}
+                onChange={(e) => setLookingForTeam(e.target.checked)}
+              />
+              <span>
+                I&apos;m looking for teammates (we&apos;ll point you to Discord)
+              </span>
+            </label>
+          </form>
+        )}
+        {status === "error" ? (
+          <p className="note" style={{ color: "var(--urgent)" }}>
+            {message}
+          </p>
+        ) : (
+          <p className="note">
+            No spam.{" "}
+            <a href="/unsubscribe">Unsubscribe</a> in one click from any email.
+          </p>
+        )}
       </div>
     </section>
   );
