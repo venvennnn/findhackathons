@@ -200,13 +200,7 @@ export default function HomePage() {
     return map;
   }, [sourceRows]);
 
-  const sourceLabel = useMemo(() => {
-    const names = sourceRows
-      .filter((row) => row.in_default_feed && row.count > 0)
-      .map((row) => row.label);
-    const core = names.length ? names.join(", ") : "Kaggle";
-    return `${core}, and many others`;
-  }, [sourceRows]);
+  const sourceLabel = "Kaggle";
 
   function toggleLevel(level: SkillLevel) {
     setLevels((current) => {
