@@ -193,9 +193,9 @@ def list_listings(
     country: Optional[str] = None,
     has_starter_code: Optional[bool] = None,
     has_prize: Optional[bool] = Query(
-        default=True,
-        description="Default true: only cash-prize listings. "
-        "Pass false to include Knowledge / no-prize competitions as well.",
+        default=False,
+        description="When true, only cash-prize listings. "
+        "Default false: include Knowledge / no-prize competitions as well.",
     ),
     students_only: Optional[bool] = Query(
         default=None,
@@ -236,7 +236,7 @@ def list_listings(
 
     if has_starter_code is not None:
         statement = statement.where(Listing.has_starter_code == has_starter_code)
-    if has_prize is not False:
+    if has_prize is True:
         statement = statement.where(
             Listing.prize_pool_usd != None,  # noqa: E711
             Listing.prize_pool_usd > 0,

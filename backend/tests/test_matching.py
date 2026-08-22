@@ -114,9 +114,19 @@ def test_match_beginner_india():
     assert "starter" in body["matches"][0]["fit_reason"].lower() or "beginner" in body["matches"][0]["fit_reason"].lower()
 
 
-def test_listings_default_prize_only():
+def test_listings_default_includes_no_prize():
     client = _client_with_db()
     response = client.get("/api/listings", params={"limit": 20})
+    assert response.status_code == 200
+    titles = {row["title"] for row in response.json()}
+    assert "Beginner Python Sprint" in titles
+    assert "Advanced CV Challenge" in titles
+    assert "Kaggle Knowledge Playground" in titles
+
+
+def test_listings_prize_only_filter():
+    client = _client_with_db()
+    response = client.get("/api/listings", params={"limit": 20, "has_prize": "true"})
     assert response.status_code == 200
     titles = {row["title"] for row in response.json()}
     assert "Beginner Python Sprint" in titles

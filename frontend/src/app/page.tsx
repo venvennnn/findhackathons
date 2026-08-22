@@ -55,8 +55,8 @@ export default function HomePage() {
   const [platforms, setPlatforms] = useState<Set<SourcePlatform>>(new Set());
   const [flags, setFlags] = useState<
     Set<"solo" | "starter" | "india" | "prize" | "students" | "farHorizon">
-  >(new Set(["prize"]));
-  const [sort, setSort] = useState<SortKey>("interest");
+  >(new Set());
+  const [sort, setSort] = useState<SortKey>("prize");
 
   const [matchText, setMatchText] = useState("");
   const [matching, setMatching] = useState(false);
@@ -250,7 +250,7 @@ export default function HomePage() {
     setLevels(new Set());
     setDomains(new Set());
     setPlatforms(new Set());
-    setFlags(new Set(["prize"]));
+    setFlags(new Set());
   }
 
   function bumpInterest(listingId: string, count: number) {
