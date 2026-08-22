@@ -60,15 +60,15 @@ def _client_with_db():
     return TestClient(app)
 
 
-def test_default_listings_exclude_unstop():
+def test_default_listings_are_kaggle_and_community():
     client = _client_with_db()
     response = client.get("/api/listings", params={"limit": 50, "has_prize": "true"})
     assert response.status_code == 200
     sources = {item["source"] for item in response.json()}
     assert "unstop" not in sources
+    assert "devpost" not in sources
+    assert "devfolio" not in sources
     assert "kaggle" in sources
-    assert "devpost" in sources
-    assert "devfolio" in sources
     assert "manual" in sources
 
 
@@ -80,6 +80,7 @@ def test_include_unstop_flag():
     )
     assert response.status_code == 200
     sources = {item["source"] for item in response.json()}
+    # Explicit include still works for legacy rows, but default feed does not.
     assert "unstop" in sources
 
 
@@ -101,8 +102,9 @@ def test_sources_endpoint_counts():
     body = response.json()
     by_source = {row["source"]: row["count"] for row in body["sources"]}
     assert by_source.get("kaggle", 0) >= 1
-    assert by_source.get("unstop", 0) >= 1
     assert "kaggle" in body["default_sources"]
+    assert "devpost" not in body["default_sources"]
+    assert "devfolio" not in body["default_sources"]
     assert "unstop" not in body["default_sources"]
 
 
@@ -120,7 +122,7 @@ def test_max_deadline_days_default_hides_far_listings():
                 title="Soon Comp",
                 organizer="Test",
                 url="https://example.com/soon",
-                source=SourcePlatform.devpost,
+                source=SourcePlatform.kaggle,
                 deadline_utc=now + timedelta(days=30),
                 domains=["other"],
                 skill_floor=SkillLevel.beginner,
@@ -135,7 +137,7 @@ def test_max_deadline_days_default_hides_far_listings():
                 title="Far Comp",
                 organizer="Test",
                 url="https://example.com/far",
-                source=SourcePlatform.devpost,
+                source=SourcePlatform.kaggle,
                 deadline_utc=now + timedelta(days=180),
                 domains=["other"],
                 skill_floor=SkillLevel.beginner,
@@ -150,7 +152,7 @@ def test_max_deadline_days_default_hides_far_listings():
                 title="Student Comp",
                 organizer="Test",
                 url="https://example.com/student",
-                source=SourcePlatform.devpost,
+                source=SourcePlatform.kaggle,
                 deadline_utc=now + timedelta(days=20),
                 domains=["other"],
                 skill_floor=SkillLevel.beginner,

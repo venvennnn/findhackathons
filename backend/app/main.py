@@ -7,7 +7,10 @@ from sqlmodel import Session
 from app.api.routes import router
 from app.core.config import get_settings
 from app.core.database import engine, init_db_with_retry
-from app.services.cleanup import deactivate_broken_demo_listings
+from app.services.cleanup import (
+    deactivate_broken_demo_listings,
+    deactivate_retired_scrape_sources,
+)
 from app.services.seed import seed_if_empty
 
 
@@ -24,6 +27,12 @@ async def lifespan(_: FastAPI):
             cleaned = deactivate_broken_demo_listings(session)
             if cleaned:
                 print(f"[db] deactivated {len(cleaned)} broken demo listings")
+            retired = deactivate_retired_scrape_sources(session)
+            if retired:
+                print(
+                    f"[db] deactivated {len(retired)} retired-scrape listings "
+                    "(devpost/devfolio/unstop)"
+                )
     except Exception as exc:  # noqa: BLE001
         # Still start the HTTP server so /api/health can report the error.
         print(f"[db] startup warning: {exc}")

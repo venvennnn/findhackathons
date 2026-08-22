@@ -22,9 +22,9 @@ def _client_with_db():
         session.add(
             Listing(
                 title="Beginner Python Sprint",
-                organizer="Devfolio",
+                organizer="Campus Hack",
                 url="https://example.com/beginner-python",
-                source=SourcePlatform.devfolio,
+                source=SourcePlatform.other,
                 deadline_utc=datetime.now(timezone.utc) + timedelta(days=30),
                 domains=["web-dev", "tabular"],
                 skill_floor=SkillLevel.beginner,
