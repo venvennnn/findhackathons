@@ -46,12 +46,10 @@ from app.services.teammates import (
 
 router = APIRouter()
 
-# Default feed: Devpost + Kaggle + Devfolio + other hosts people submit.
-# Unstop is opt-in only. Legacy `manual` rows stay visible until remapped.
+# Default feed: Kaggle (scraped) + community / other hosts people submit.
+# We no longer scrape Devpost / Devfolio / Unstop.
 DEFAULT_FEED_SOURCES: List[SourcePlatform] = [
     SourcePlatform.kaggle,
-    SourcePlatform.devpost,
-    SourcePlatform.devfolio,
     SourcePlatform.other,
     SourcePlatform.manual,
 ]
@@ -65,27 +63,29 @@ SOURCE_LABELS = {
     SourcePlatform.other: "Other sites",
 }
 
-# Sidebar shows platforms — not a separate "Added by people" bucket.
+# Platform chips — only sources we still surface by default.
 SIDEBAR_SOURCES: List[SourcePlatform] = [
     SourcePlatform.kaggle,
-    SourcePlatform.devpost,
-    SourcePlatform.devfolio,
-    SourcePlatform.unstop,
     SourcePlatform.other,
 ]
 
 
 def _infer_source_from_url(url: str) -> SourcePlatform:
-    """Map a competition URL to its host platform for sidebar grouping."""
+    """Map a competition URL to its host platform for sidebar grouping.
+
+    Devpost / Devfolio / Unstop are no longer scraped; community adds from
+    those hosts are stored as ``other`` so they still appear in the default feed.
+    """
     low = (url or "").lower()
     if "kaggle.com" in low:
         return SourcePlatform.kaggle
+    # Retired scrape hosts → other (do not create new Devpost/Devfolio/Unstop rows).
     if "devpost.com" in low:
-        return SourcePlatform.devpost
+        return SourcePlatform.other
     if "devfolio.co" in low or "devfolio.com" in low:
-        return SourcePlatform.devfolio
+        return SourcePlatform.other
     if "unstop.com" in low:
-        return SourcePlatform.unstop
+        return SourcePlatform.other
     return SourcePlatform.other
 
 
@@ -701,12 +701,21 @@ def cleanup_broken_urls(
     session: Session = Depends(get_session),
     x_ingest_token: Optional[str] = Header(default=None),
 ) -> dict:
-    """Deactivate known-bad seed /software/ and /hackathons/ demo URLs."""
+    """Deactivate known-bad seed URLs and retired scrape hosts."""
     _require_ingest_token(x_ingest_token)
-    from app.services.cleanup import deactivate_broken_demo_listings
+    from app.services.cleanup import (
+        deactivate_broken_demo_listings,
+        deactivate_retired_scrape_sources,
+    )
 
-    deactivated = deactivate_broken_demo_listings(session)
-    return {"ok": True, "deactivated": len(deactivated), "urls": deactivated}
+    broken = deactivate_broken_demo_listings(session)
+    retired = deactivate_retired_scrape_sources(session)
+    return {
+        "ok": True,
+        "deactivated": len(broken) + len(retired),
+        "broken_urls": broken,
+        "retired_urls": retired,
+    }
 
 
 @router.post("/alerts/subscribe", response_model=AlertSubscribeResponse)

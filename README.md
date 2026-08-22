@@ -42,7 +42,7 @@ uvicorn app.main:app --reload --port 8000
 
 API docs: [http://localhost:8000/docs](http://localhost:8000/docs)
 
-On boot the API seeds 10 demo listings (Devfolio / Unstop / Kaggle / Devpost) if the DB is empty.
+On boot the API seeds demo listings (mostly Kaggle / other) if the DB is empty.
 
 ### 2. Frontend
 

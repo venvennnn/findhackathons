@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   title:
     "FindHackathons — open hackathons and ML competitions, ranked by effort",
   description:
-    "Live hackathons from Devpost, Kaggle and Devfolio with skill floor, eligibility and an honest weekend estimate. Describe yourself and get the nine worth entering.",
+    "Live Kaggle competitions with skill floor, eligibility and an honest weekend estimate. Describe yourself and get the nine worth entering.",
   metadataBase: new URL("https://findhackathons.com"),
 };
 

@@ -170,21 +170,22 @@ def test_manual_listing_submit_create_and_update():
     assert detail2["community_submitted"] is True
 
 
-def test_manual_listing_infers_devpost_and_other():
+def test_manual_listing_infers_kaggle_and_other():
     get_settings.cache_clear()
     client, _ = _client_with_db()
 
-    devpost = client.post(
+    # Retired scrape hosts are stored as other (still community-visible).
+    retired = client.post(
         "/api/listings/submit",
         json={
             "title": "Devpost Weekend",
-            "url": "https://devpost.com/software/example-hack",
+            "url": "https://cool-hack.devpost.com/",
             "prize_pool_usd": 500,
         },
     )
-    assert devpost.status_code == 200
-    detail = client.get(f"/api/listings/{devpost.json()['id']}").json()
-    assert detail["source"] == "devpost"
+    assert retired.status_code == 200
+    detail = client.get(f"/api/listings/{retired.json()['id']}").json()
+    assert detail["source"] == "other"
     assert detail["community_submitted"] is True
 
     other = client.post(

@@ -204,7 +204,7 @@ export default function HomePage() {
     const names = sourceRows
       .filter((row) => row.in_default_feed && row.count > 0)
       .map((row) => row.label);
-    const core = names.length ? names.join(", ") : "Kaggle, Devpost, Devfolio";
+    const core = names.length ? names.join(", ") : "Kaggle";
     return `${core}, and many others`;
   }, [sourceRows]);
 
@@ -739,7 +739,7 @@ export default function HomePage() {
       <footer>
         <div className="wrap fw">
           <span>FindHackathons</span>
-          <span>Devpost, Kaggle and Devfolio by default. Unstop on request.</span>
+          <span>Kaggle competitions by default. People can add others.</span>
           <span className="push">
             {loading ? "" : `${stats.open} open competitions`}
           </span>

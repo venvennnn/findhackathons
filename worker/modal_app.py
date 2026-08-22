@@ -70,19 +70,15 @@ def _run_pipeline(limit_per_source: int = 40, kaggle_limit: int = 800) -> Dict[s
 
     from enrichment import content_hash, enrich_or_none
     from db_writer import deactivate_stale, upsert_listing
-    from scrapers.devfolio import fetch_devfolio
-    from scrapers.devpost import fetch_devpost
     from scrapers.kaggle import fetch_kaggle, iter_prize_stats
-    from scrapers.unstop import fetch_unstop
 
+    # Product policy: only scrape Kaggle (public competition API).
+    # Do not scrape Devpost / Devfolio / Unstop.
     kaggle_rows = fetch_kaggle(limit=kaggle_limit)
     print(f"[pipeline] kaggle stats: {iter_prize_stats(kaggle_rows)}")
 
     raw_batches = [
         ("kaggle", kaggle_rows),
-        ("devpost", fetch_devpost(limit=max(limit_per_source, 60))),
-        ("devfolio", fetch_devfolio(limit=max(limit_per_source, 60))),
-        ("unstop", fetch_unstop(limit=20)),  # product: only nearest ~20
     ]
 
     stats = {

@@ -233,11 +233,9 @@ export function getSources() {
   return request<SourcesResponse>("/api/sources");
 }
 
-/** Default directory feed — Unstop is opt-in. */
+/** Default directory feed — Kaggle + community adds. */
 export const DEFAULT_FEED_SOURCES: SourcePlatform[] = [
   "kaggle",
-  "devpost",
-  "devfolio",
   "other",
   "manual",
 ];
@@ -269,9 +267,6 @@ export const DOMAIN_OPTIONS: { value: DomainCategory; label: string }[] = [
 
 export const PLATFORM_OPTIONS: { value: SourcePlatform; label: string }[] = [
   { value: "kaggle", label: "Kaggle" },
-  { value: "devpost", label: "Devpost" },
-  { value: "devfolio", label: "Devfolio" },
-  { value: "unstop", label: "Unstop" },
 ];
 
 export const MATCH_EXAMPLES = [
